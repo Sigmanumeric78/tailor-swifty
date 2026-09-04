@@ -20,7 +20,6 @@ export function Layout({ children }) {
           <span className="brand-mark"><Shirt size={21} /></span>
           <span>Tailored Outfit</span>
         </Link>
-        <span className="local-status"><span aria-hidden="true" /> Local workspace</span>
       </header>
       <div className="workspace">
         <aside className="step-rail" aria-label="Recommendation progress">
@@ -39,4 +38,3 @@ export function Layout({ children }) {
     </div>
   )
 }
-

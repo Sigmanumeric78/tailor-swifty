@@ -31,8 +31,6 @@ h2 { font-size: 17px; line-height: 1.35; }
 .topbar { height: 64px; background: var(--surface); border-bottom: 1px solid var(--line); padding: 0 32px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 10; }
 .brand { display: inline-flex; align-items: center; gap: 10px; text-decoration: none; font-weight: 750; }
 .brand-mark { width: 34px; height: 34px; display: grid; place-items: center; color: white; background: var(--accent); border-radius: 6px; }
-.local-status { display: inline-flex; align-items: center; gap: 8px; color: var(--muted); font-size: 13px; }
-.local-status > span { width: 8px; height: 8px; background: #36a578; border-radius: 50%; box-shadow: 0 0 0 3px #dff3ea; }
 .workspace { min-height: calc(100vh - 64px); display: grid; grid-template-columns: 210px minmax(0, 1fr); }
 .step-rail { border-right: 1px solid var(--line); padding: 32px 26px; background: #edf2f0; }
 .rail-title { font-size: 13px; font-weight: 750; display: flex; align-items: center; gap: 8px; margin-bottom: 25px; color: #34423d; }
@@ -169,7 +167,6 @@ h2 { font-size: 17px; line-height: 1.35; }
 }
 
 @media (max-width: 520px) {
-  .local-status { display: none; }
   .main-content { padding-inline: 16px; }
   h1 { font-size: 30px; }
   .header-with-control { display: block; }
@@ -190,4 +187,3 @@ h2 { font-size: 17px; line-height: 1.35; }
   .main-content { width: 100%; padding: 0; }
   body { background: white; }
 }
-
