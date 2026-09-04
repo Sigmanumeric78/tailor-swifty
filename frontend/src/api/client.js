@@ -1,3 +1,11 @@
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/+$/, '')
+
+
+function resolveApiUrl(path) {
+  return `${API_BASE_URL}${path}`
+}
+
+
 export class ApiError extends Error {
   constructor(status, payload) {
     super(payload?.error?.message || 'The local service could not complete the request.')
@@ -8,7 +16,7 @@ export class ApiError extends Error {
 }
 
 export async function request(path, options = {}) {
-  const response = await fetch(path, {
+  const response = await fetch(resolveApiUrl(path), {
     ...options,
     headers: {
       ...(options.body ? { 'Content-Type': 'application/json' } : {}),

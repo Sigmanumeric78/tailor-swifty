@@ -12,3 +12,8 @@ frontend/coverage/
 .DS_Store
 CODEX_START_PROMPT.md
 tailored_outfit_platform_implementation_blueprint.pdf
+.neon
+.env.local
+.aws-sam/
+
+samconfig.toml

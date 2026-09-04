@@ -10,6 +10,7 @@ describe('shirt measurement wizard', () => {
   it('renders the eight backend-defined shirt fields', async () => {
     vi.stubGlobal('fetch', vi.fn(() => jsonResponse(schema)))
     renderApp({ route: '/measurements', flow: { schema } })
+    await screen.findByLabelText(schema.fields[0].label)
     for (const field of schema.fields) expect(screen.getByLabelText(field.label)).toBeInTheDocument()
     expect(screen.getAllByRole('spinbutton')).toHaveLength(8)
   })
@@ -18,7 +19,7 @@ describe('shirt measurement wizard', () => {
     const user = userEvent.setup()
     vi.stubGlobal('fetch', vi.fn(() => jsonResponse(schema)))
     renderApp({ route: '/measurements', flow: { schema, measurements: { ...measurements, chest_circumference: '100' }, unit: 'cm' } })
-    await user.click(screen.getByRole('button', { name: 'in' }))
+    await user.click(await screen.findByRole('button', { name: 'in' }))
     expect(screen.getByLabelText('Chest circumference')).toHaveValue(39.37)
   })
 
@@ -31,7 +32,7 @@ describe('shirt measurement wizard', () => {
       return jsonResponse({})
     }))
     renderApp({ route: '/measurements', flow: { schema, measurements, participant: { id: 'participant-1' }, consented: true } })
-    await user.click(screen.getByRole('button', { name: /check and continue/i }))
+    await user.click(await screen.findByRole('button', { name: /check and continue/i }))
     expect(await screen.findByText('Confirm this chest value.')).toBeInTheDocument()
     expect(screen.getByLabelText('Chest circumference')).toHaveAttribute('aria-invalid', 'true')
   })
@@ -40,8 +41,7 @@ describe('shirt measurement wizard', () => {
     const user = userEvent.setup()
     vi.stubGlobal('fetch', vi.fn(() => jsonResponse(schema)))
     renderApp({ route: '/preferences', flow: { schema, measurements, unit: 'cm' } })
-    await user.click(screen.getByRole('button', { name: /^back$/i }))
+    await user.click(await screen.findByRole('button', { name: /^back$/i }))
     await waitFor(() => expect(screen.getByLabelText('Neck circumference')).toHaveValue(Number(measurements.neck_circumference)))
   })
 })
-

@@ -1,0 +1,59 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+
+Description: Tailor Swifty FastAPI backend on AWS Lambda
+
+Parameters:
+  DatabaseUrlParameterName:
+    Type: String
+    Default: /tailor-swifty/production/database-url
+
+  AllowedOrigins:
+    Type: String
+    Default: "*"
+
+Globals:
+  Function:
+    Runtime: python3.13
+    Architectures:
+      - x86_64
+    MemorySize: 512
+    Timeout: 30
+    Environment:
+      Variables:
+        APP_ENV: production
+        DATABASE_URL_PARAMETER_NAME: !Ref DatabaseUrlParameterName
+        ALLOWED_ORIGINS: !Ref AllowedOrigins
+        CONSENT_VERSION: "1"
+        MEASUREMENT_SCHEMA_VERSION: "1"
+        PROTOCOL_VERSION: "1"
+        RULES_VERSION: "1"
+        CATALOG_VERSION: "1"
+        REPEAT_TOLERANCE_MM: "10"
+
+Resources:
+  TailorApiFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: backend/
+      Handler: app.main.handler
+      Description: Tailor Swifty FastAPI backend
+      Policies:
+        - Version: "2012-10-17"
+          Statement:
+            - Effect: Allow
+              Action:
+                - ssm:GetParameter
+              Resource: !Sub "arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter${DatabaseUrlParameterName}"
+      FunctionUrlConfig:
+        AuthType: NONE
+        InvokeMode: BUFFERED
+
+Outputs:
+  ApiFunctionName:
+    Description: Lambda function name
+    Value: !Ref TailorApiFunction
+
+  ApiUrl:
+    Description: Public Lambda Function URL
+    Value: !GetAtt TailorApiFunctionUrl.FunctionUrl

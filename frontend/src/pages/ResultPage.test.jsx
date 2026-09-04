@@ -14,13 +14,13 @@ it('a valid reviewed form reaches the result screen', async () => {
     return jsonResponse({})
   }))
   renderApp({ route: '/review', flow: { schema, measurements, session: { id: 'session-1' } } })
-  await user.click(screen.getByRole('button', { name: /create recommendation/i }))
+  await user.click(await screen.findByRole('button', { name: /create recommendation/i }))
   expect(await screen.findByRole('heading', { name: 'Breathable linen shirt' })).toBeInTheDocument()
 })
 
-it('displays score, reasons, warnings, and finished measurements', () => {
+it('displays score, reasons, warnings, and finished measurements', async () => {
   renderApp({ route: '/results/rec-1', flow: { result } })
-  expect(screen.getByText('100')).toBeInTheDocument()
+  expect(await screen.findByText('100')).toBeInTheDocument()
   expect(screen.getByText('Designed for smart casual occasions.')).toBeInTheDocument()
   expect(screen.getByText('Ease allowances are provisional development values.')).toBeInTheDocument()
   expect(screen.getByText('1160 mm')).toBeInTheDocument()
@@ -32,4 +32,3 @@ it('can recover a saved result directly from the API', async () => {
   renderApp({ route: '/results/rec-1' })
   expect(await screen.findByText('Light and comfortable for warm days.')).toBeInTheDocument()
 })
-
