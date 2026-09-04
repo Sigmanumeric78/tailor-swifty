@@ -10,4 +10,5 @@ frontend/coverage/
 *.pyc
 *.sqlite3
 .DS_Store
-
+CODEX_START_PROMPT.md
+tailored_outfit_platform_implementation_blueprint.pdf

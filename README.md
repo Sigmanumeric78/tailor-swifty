@@ -157,16 +157,3 @@ npm run dev -- --port 5174
 **Migration authentication failure**
 
 Confirm that `backend/.env` exists, the password is URL-encoded, and the role can connect using the direct `psql` command. Alembic reads the same `DATABASE_URL` as FastAPI.
-
-## Safety and limitations
-
-The ease allowances are provisional development inputs. They require review by a qualified tailor or apparel-pattern specialist before fit claims or a real pilot. Finished-garment targets are not sewing patterns.
-
-The child flow is not approved or implemented for real data. Do not collect child measurements until guardian verification, consent language, retention, deletion, child notices, jurisdictional requirements, and child-specific tailoring rules receive independent expert review.
-
-This slice intentionally excludes names and contact details, trousers, T-shirts, saved profiles, withdrawal/deletion UI, guardian consent, camera measurements, virtual try-on, ML, deployment, and the 100,000-record synthetic load phase.
-
-## Next phase
-
-After PostgreSQL integration is verified, the next roadmap phase should add the remaining garment catalog and top-three compatible recommendations while preserving versioned snapshots and the passing adult-shirt acceptance fixture.
-
