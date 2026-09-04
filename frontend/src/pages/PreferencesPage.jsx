@@ -18,7 +18,25 @@ function ToggleGroup({ label, name, values, selected, multiple = false, onChange
     if (!multiple) return onChange(value)
     onChange(selected.includes(value) ? selected.filter((item) => item !== value) : [...selected, value])
   }
-  return <fieldset className="choice-group"><legend>{label}</legend><div className="choice-list">{values.map((value) => <button key={value} type="button" aria-pressed={multiple ? selected.includes(value) : selected === value} onClick={() => toggle(value)}>{value.replace('-', ' ')}</button>)}</div></fieldset>
+  return (
+    <fieldset className={`choice-group choice-group-${name}`}>
+      <legend>{label}</legend>
+      <div className="choice-list">
+        {values.map((value) => (
+          <button
+            key={value}
+            type="button"
+            className={name === 'colours' ? 'colour-choice' : undefined}
+            data-value={value}
+            aria-pressed={multiple ? selected.includes(value) : selected === value}
+            onClick={() => toggle(value)}
+          >
+            {value.replace('-', ' ')}
+          </button>
+        ))}
+      </div>
+    </fieldset>
+  )
 }
 
 export function PreferencesPage() {
@@ -28,8 +46,8 @@ export function PreferencesPage() {
   const set = (name, value) => setPreferences((current) => ({ ...current, [name]: value }))
   const continueToReview = () => { updateFlow({ preferences }); navigate('/review') }
   return (
-    <section>
-      <PageHeader eyebrow="Style profile" title="Set the direction" description="These choices affect ranking only. Your body measurements determine the finished-garment targets." />
+    <section className="page page-preferences">
+      <PageHeader eyebrow="Style profile · 04" title="Set the direction." description="These choices affect ranking only. Your body measurements determine the finished-garment targets." />
       <div className="preferences-layout">
         <ToggleGroup label="Occasion" name="occasion" values={options.occasion} selected={preferences.occasion} onChange={(value) => set('occasion', value)} />
         <ToggleGroup label="Climate" name="climate" values={options.climate} selected={preferences.climate} onChange={(value) => set('climate', value)} />
@@ -38,8 +56,7 @@ export function PreferencesPage() {
         <ToggleGroup label="Colour" name="colours" values={options.colours} selected={preferences.colours} multiple onChange={(value) => set('colours', value)} />
         <ToggleGroup label="Preferred fabric" name="preferred_fabrics" values={options.preferred_fabrics} selected={preferences.preferred_fabrics} multiple onChange={(value) => set('preferred_fabrics', value)} />
       </div>
-      <div className="page-actions"><button className="secondary-button" onClick={() => { updateFlow({ preferences }); navigate('/measurements') }}><ArrowLeft size={17} /> Back</button><button className="primary-button" onClick={continueToReview}>Review submission <ArrowRight size={17} /></button></div>
+      <div className="page-actions"><button className="secondary-button" onClick={() => { updateFlow({ preferences }); navigate('/measurements') }}><ArrowLeft size={17} aria-hidden="true" /> Back</button><button className="primary-button" onClick={continueToReview}>Review submission <ArrowRight size={17} aria-hidden="true" /></button></div>
     </section>
   )
 }
-

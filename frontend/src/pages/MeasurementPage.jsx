@@ -69,14 +69,14 @@ export function MeasurementPage() {
     }
   }
 
-  if (schemaQuery.isLoading && !flow.schema) return <div className="loading-state"><RefreshCw className="spin" /> Loading measurement guide…</div>
-  if (schemaQuery.isError && !flow.schema) return <div className="empty-state"><h1>Measurement guide unavailable</h1><p>{schemaQuery.error.message}</p><button className="secondary-button" onClick={() => schemaQuery.refetch()}><RefreshCw size={17} /> Retry</button></div>
+  if (schemaQuery.isLoading && !flow.schema) return <div className="loading-state" role="status"><RefreshCw className="spin" aria-hidden="true" /> Loading measurement guide…</div>
+  if (schemaQuery.isError && !flow.schema) return <div className="empty-state" role="alert"><h1>Measurement guide unavailable</h1><p>{schemaQuery.error.message}</p><button className="secondary-button" onClick={() => schemaQuery.refetch()}><RefreshCw size={17} aria-hidden="true" /> Retry</button></div>
   if (!fields.length) return <div className="empty-state"><h1>No shirt measurements found</h1><p>The backend returned an empty schema.</p></div>
 
   return (
-    <section>
+    <section className="page page-measurements">
       <div className="header-with-control">
-        <PageHeader eyebrow={`Measurement schema v${schemaQuery.data?.version || flow.schema?.version}`} title="Enter your shirt measurements" description="Measure over light clothing. You can add a second attempt anywhere you want to confirm placement." />
+        <PageHeader eyebrow={`Measurement schema v${schemaQuery.data?.version || flow.schema?.version} · 03`} title="Enter your shirt measurements." description="Measure over light clothing. You can add a second attempt anywhere you want to confirm placement." />
         <fieldset className="segmented"><legend>Measurement unit</legend><button type="button" aria-pressed={unit === 'cm'} onClick={() => changeUnit('cm')}>cm</button><button type="button" aria-pressed={unit === 'in'} onClick={() => changeUnit('in')}>in</button></fieldset>
       </div>
       <Notice>{schemaQuery.data?.range_notice || flow.schema?.range_notice}</Notice>
@@ -85,17 +85,25 @@ export function MeasurementPage() {
           {fields.map((field, index) => (
             <div className="measurement-row" key={field.code}>
               <div className="measurement-index">{String(index + 1).padStart(2, '0')}</div>
-              <div className="measurement-copy"><label htmlFor={field.code}>{field.label}</label><p>{field.instruction}</p></div>
+              <div className="measurement-copy"><label htmlFor={field.code}>{field.label}</label><p id={`${field.code}-instruction`}>{field.instruction}</p></div>
               <div className="measurement-entry">
-                <div className="input-with-unit"><input id={field.code} type="number" inputMode="decimal" step="0.01" aria-invalid={Boolean(errors[field.code])} {...register(field.code, { required: `${field.label} is required.`, min: { value: 0.01, message: 'Enter a value greater than zero.' } })} /><span>{unit}</span></div>
-                {errors[field.code] && <span className="field-error">{errors[field.code].message}</span>}
-                {!repeats.has(field.code) ? <button type="button" className="text-button" onClick={() => setRepeats((current) => new Set(current).add(field.code))}><Plus size={14} /> Add repeat</button> : <div className="repeat-entry"><label htmlFor={`second-${field.code}`}>Second attempt</label><div className="input-with-unit"><input id={`second-${field.code}`} aria-label={`${field.label} second attempt`} type="number" inputMode="decimal" step="0.01" {...register(`second.${field.code}`, { min: { value: 0.01, message: 'Enter a value greater than zero.' } })} /><span>{unit}</span></div></div>}
+                <div className="input-with-unit"><input id={field.code} type="number" inputMode="decimal" step="0.01" aria-invalid={Boolean(errors[field.code])} aria-describedby={`${field.code}-instruction${errors[field.code] ? ` ${field.code}-error` : ''}`} {...register(field.code, { required: `${field.label} is required.`, min: { value: 0.01, message: 'Enter a value greater than zero.' } })} /><span>{unit}</span></div>
+                {errors[field.code] && <span className="field-error" id={`${field.code}-error`} role="alert">{errors[field.code].message}</span>}
+                {!repeats.has(field.code) ? (
+                  <button type="button" className="text-button" onClick={() => setRepeats((current) => new Set(current).add(field.code))}><Plus size={14} aria-hidden="true" /> Add repeat</button>
+                ) : (
+                  <div className="repeat-entry">
+                    <label htmlFor={`second-${field.code}`}>Second attempt</label>
+                    <div className="input-with-unit"><input id={`second-${field.code}`} aria-label={`${field.label} second attempt`} aria-invalid={Boolean(errors.second?.[field.code])} aria-describedby={errors.second?.[field.code] ? `second-${field.code}-error` : undefined} type="number" inputMode="decimal" step="0.01" {...register(`second.${field.code}`, { min: { value: 0.01, message: 'Enter a value greater than zero.' } })} /><span>{unit}</span></div>
+                    {errors.second?.[field.code] && <span className="field-error" id={`second-${field.code}-error`} role="alert">{errors.second[field.code].message}</span>}
+                  </div>
+                )}
               </div>
             </div>
           ))}
         </div>
         {submitError && <Notice tone="error">{submitError}</Notice>}
-        <div className="page-actions"><button type="button" className="secondary-button" onClick={() => { const values = getValues(); updateFlow({ measurements: Object.fromEntries(fields.map((field) => [field.code, values[field.code]])), secondAttempts: values.second || {}, unit }); navigate('/consent') }}><ArrowLeft size={17} /> Back</button><button className="primary-button" disabled={isSubmitting}>{isSubmitting ? 'Checking measurements…' : 'Check and continue'} <ArrowRight size={17} /></button></div>
+        <div className="page-actions"><button type="button" className="secondary-button" onClick={() => { const values = getValues(); updateFlow({ measurements: Object.fromEntries(fields.map((field) => [field.code, values[field.code]])), secondAttempts: values.second || {}, unit }); navigate('/consent') }}><ArrowLeft size={17} aria-hidden="true" /> Back</button><button className="primary-button" disabled={isSubmitting}>{isSubmitting ? 'Checking measurements…' : 'Check and continue'} <ArrowRight size={17} aria-hidden="true" /></button></div>
       </form>
     </section>
   )

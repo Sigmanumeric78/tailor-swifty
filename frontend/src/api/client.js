@@ -8,7 +8,7 @@ function resolveApiUrl(path) {
 
 export class ApiError extends Error {
   constructor(status, payload) {
-    super(payload?.error?.message || 'The local service could not complete the request.')
+    super(payload?.error?.message || 'The service could not complete the request.')
     this.status = status
     this.code = payload?.error?.code || 'API_ERROR'
     this.details = payload?.error?.details || []
