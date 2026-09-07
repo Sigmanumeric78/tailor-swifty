@@ -7,6 +7,10 @@ backend/.coverage
 frontend/node_modules/
 frontend/dist/
 frontend/coverage/
+research/segmentation-benchmark/datasets/images/
+research/segmentation-benchmark/datasets/masks/
+research/segmentation-benchmark/results/latest.*
+research/segmentation-benchmark/.model-cache/
 *.pyc
 *.sqlite3
 .DS_Store

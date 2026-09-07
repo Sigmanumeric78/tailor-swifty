@@ -5,6 +5,7 @@ import { IntroductionPage } from './pages/IntroductionPage'
 
 const ConsentPage = lazy(() => import('./pages/ConsentPage').then((module) => ({ default: module.ConsentPage })))
 const MeasurementPage = lazy(() => import('./pages/MeasurementPage').then((module) => ({ default: module.MeasurementPage })))
+const CameraScanPage = lazy(() => import('./pages/CameraScanPage').then((module) => ({ default: module.CameraScanPage })))
 const PreferencesPage = lazy(() => import('./pages/PreferencesPage').then((module) => ({ default: module.PreferencesPage })))
 const ReviewPage = lazy(() => import('./pages/ReviewPage').then((module) => ({ default: module.ReviewPage })))
 const ResultPage = lazy(() => import('./pages/ResultPage').then((module) => ({ default: module.ResultPage })))
@@ -17,6 +18,7 @@ export function App() {
           <Route path="/" element={<IntroductionPage />} />
           <Route path="/consent" element={<ConsentPage />} />
           <Route path="/measurements" element={<MeasurementPage />} />
+          <Route path="/measurements/camera" element={<CameraScanPage />} />
           <Route path="/preferences" element={<PreferencesPage />} />
           <Route path="/review" element={<ReviewPage />} />
           <Route path="/results/:id" element={<ResultPage />} />

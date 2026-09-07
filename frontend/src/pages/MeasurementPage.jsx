@@ -1,4 +1,4 @@
-import { ArrowLeft, ArrowRight, Plus, RefreshCw } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Camera, Plus, RefreshCw } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
@@ -80,6 +80,7 @@ export function MeasurementPage() {
         <fieldset className="segmented"><legend>Measurement unit</legend><button type="button" aria-pressed={unit === 'cm'} onClick={() => changeUnit('cm')}>cm</button><button type="button" aria-pressed={unit === 'in'} onClick={() => changeUnit('in')}>in</button></fieldset>
       </div>
       <Notice>{schemaQuery.data?.range_notice || flow.schema?.range_notice}</Notice>
+      <div className="camera-entry"><div><strong>Prefer an on-device estimate?</strong><p>Use experimental front and side camera captures, then review every value here before submission.</p></div><button type="button" className="secondary-button" onClick={() => navigate('/measurements/camera')}><Camera size={17} aria-hidden="true" /> Use camera scan</button></div>
       <form onSubmit={handleSubmit(onSubmit)} className="measurement-form" noValidate>
         <div className="measurement-grid">
           {fields.map((field, index) => (
@@ -89,6 +90,8 @@ export function MeasurementPage() {
               <div className="measurement-entry">
                 <div className="input-with-unit"><input id={field.code} type="number" inputMode="decimal" step="0.01" aria-invalid={Boolean(errors[field.code])} aria-describedby={`${field.code}-instruction${errors[field.code] ? ` ${field.code}-error` : ''}`} {...register(field.code, { required: `${field.label} is required.`, min: { value: 0.01, message: 'Enter a value greater than zero.' } })} /><span>{unit}</span></div>
                 {errors[field.code] && <span className="field-error" id={`${field.code}-error`} role="alert">{errors[field.code].message}</span>}
+                {flow.cameraScan?.measurements?.[field.code]?.value_mm != null && <span className="camera-provenance">Camera estimate · {Math.round(flow.cameraScan.measurements[field.code].confidence * 100)}% confidence · ±{(flow.cameraScan.measurements[field.code].uncertainty_mm / 10).toFixed(1)} cm</span>}
+                {field.code === 'shirt_length' && flow.cameraScan?.status === 'review' && <span className="camera-provenance">Manual entry required · preferred hem is not observable</span>}
                 {!repeats.has(field.code) ? (
                   <button type="button" className="text-button" onClick={() => setRepeats((current) => new Set(current).add(field.code))}><Plus size={14} aria-hidden="true" /> Add repeat</button>
                 ) : (
