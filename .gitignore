@@ -21,3 +21,8 @@ tailored_outfit_platform_implementation_blueprint.pdf
 .aws-sam/
 
 samconfig.toml
+
+# Downloaded camera-model binaries
+/frontend/public/models/bodypix/
+/frontend/public/models/mediapipe/
+/frontend/public/models/tensorflow/
