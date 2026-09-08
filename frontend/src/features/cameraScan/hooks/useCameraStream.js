@@ -31,14 +31,19 @@ export function useCameraStream() {
 
 export async function captureBurst(video, { count = scanConfig.capture.burstSize, intervalMs = 80 } = {}) {
   const frames = []
-  for (let index = 0; index < count; index += 1) {
-    const canvas = document.createElement('canvas'); canvas.width = video.videoWidth; canvas.height = video.videoHeight
-    const context = canvas.getContext('2d', { willReadFrequently: true }); context.drawImage(video, 0, 0)
-    const bitmap = await createImageBitmap(canvas); context.clearRect(0, 0, canvas.width, canvas.height)
-    frames.push({ id: crypto.randomUUID(), timestamp: performance.now(), bitmap, width: canvas.width, height: canvas.height, qualityScore: 1 })
-    if (index + 1 < count) await new Promise((resolve) => setTimeout(resolve, intervalMs))
-  }
-  return frames
+  try {
+    for (let index = 0; index < count; index += 1) {
+      const width = video.videoWidth; const height = video.videoHeight
+      const canvas = document.createElement('canvas'); canvas.width = width; canvas.height = height
+      const context = canvas.getContext('2d', { willReadFrequently: true })
+      try {
+        context.drawImage(video, 0, 0); const bitmap = await createImageBitmap(canvas)
+        frames.push({ id: crypto.randomUUID(), timestamp: performance.now(), bitmap, width, height, qualityScore: 1 })
+      } finally { context.clearRect(0, 0, width, height); canvas.width = 0; canvas.height = 0 }
+      if (index + 1 < count) await new Promise((resolve) => setTimeout(resolve, intervalMs))
+    }
+    return frames
+  } catch (error) { releaseFrames(frames); throw error }
 }
 
 export function releaseFrames(frames = []) { frames.forEach((frame) => frame.bitmap?.close?.()) }

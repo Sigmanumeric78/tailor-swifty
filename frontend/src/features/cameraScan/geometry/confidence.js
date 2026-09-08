@@ -21,7 +21,9 @@ export function confidenceBand(score) {
 }
 
 export function overallConfidence(results) {
-  const required = results.filter((result) => result.observable && result.value_mm != null).map((result) => result.confidence)
+  const observable = results.filter((result) => result.observable)
+  if (observable.some((result) => result.value_mm == null)) return 0
+  const required = observable.map((result) => result.confidence)
   if (!required.length) return 0
   return Math.min(...required)
 }

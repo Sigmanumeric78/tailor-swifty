@@ -12,15 +12,13 @@ import { ScanReview } from '../features/cameraScan/components/ScanReview'
 import { selectTemporallySeparatedFrames } from '../features/cameraScan/geometry/statistics'
 import { captureBurst, releaseFrames, useCameraStream } from '../features/cameraScan/hooks/useCameraStream'
 import { PIPELINE_VERSION, scanConfig } from '../features/cameraScan/scanConfig'
+import { mergeMeasurementPrefill } from '../features/cameraScan/prefill'
 import { CameraModelRegistry } from '../features/cameraScan/services/modelRegistry'
 import { processCaptureRepetitions } from '../features/cameraScan/services/measurementPipeline'
 import { scoreCapturedFrame } from '../features/cameraScan/services/opencvQualityService'
 import { useFlow } from '../features/FlowContext'
 
-export function mergeCameraPrefill(existing, estimates) {
-  const eligible = Object.fromEntries(Object.entries(estimates).filter(([, item]) => item.value_mm != null && item.confidence >= scanConfig.confidence.mediumMin && !existing[item.measurement_code]).map(([code, item]) => [code, (item.value_mm / 10).toFixed(2)]))
-  return { ...eligible, ...existing }
-}
+export const mergeCameraPrefill = mergeMeasurementPrefill
 
 export function CameraScanPage() {
   const navigate = useNavigate(); const { flow, updateFlow } = useFlow(); const [state, send] = useMachine(cameraMachine)
@@ -38,36 +36,34 @@ export function CameraScanPage() {
   useEffect(() => {
     if (!state.matches('loadingModels') || registryRef.current) return
     const registry = new CameraModelRegistry(); registryRef.current = registry
-    registry.initialize().then(() => send({ type: 'MODELS_READY' })).catch((error) => send({ type: 'MODEL_ERROR', error: error.message }))
+    registry.initializeLive().then(() => send({ type: 'MODELS_READY' })).catch((error) => send({ type: 'MODEL_ERROR', error: error.message }))
   }, [send, state])
-  useEffect(() => {
-    if (!state.matches(`${view}.countdown`)) return undefined
-    const timer = window.setTimeout(() => send({ type: 'COUNTDOWN_COMPLETE' }), 3000)
-    return () => window.clearTimeout(timer)
-  }, [send, state, view])
   useEffect(() => {
     if (!state.matches(`${view}.capturingBurst`)) return
     let cancelled = false
     captureBurst(webcamRef.current.video).then(async (frames) => {
       if (cancelled) return releaseFrames(frames)
-      const scoredFrames = frames.map((frame) => scoreCapturedFrame(registryRef.current.cv, frame))
-      const selectedFrames = selectTemporallySeparatedFrames(scoredFrames, scanConfig.capture.selectedFrames, scanConfig.capture.minimumSeparationMs)
-      const selectedIds = new Set(selectedFrames.map((frame) => frame.id)); releaseFrames(frames.filter((frame) => !selectedIds.has(frame.id)))
-      send({ type: 'BURST_COMPLETE', frames: selectedFrames, selectedFrames })
-    }).catch((error) => send({ type: 'PROCESS_ERROR', error: error.message }))
+      try {
+        const scoredFrames = frames.map((frame) => scoreCapturedFrame(registryRef.current.cv, frame))
+        const selectedFrames = selectTemporallySeparatedFrames(scoredFrames, scanConfig.capture.selectedFrames, scanConfig.capture.minimumSeparationMs)
+        const selectedIds = new Set(selectedFrames.map((frame) => frame.id)); releaseFrames(frames.filter((frame) => !selectedIds.has(frame.id)))
+        send({ type: 'BURST_COMPLETE', frames: selectedFrames, selectedFrames })
+      } catch (error) { releaseFrames(frames); throw error }
+    }).catch((error) => { cleanup(); send({ type: 'PROCESS_ERROR', error: error.message }) })
     return () => { cancelled = true }
-  }, [send, state, view])
+  }, [cleanup, send, state, view])
   useEffect(() => {
     if (!state.matches('processing')) return
-    processCaptureRepetitions(registryRef.current, state.context.selectedFrontFrames, state.context.selectedSideFrames, state.context.heightMm)
+    registryRef.current.initializeSegmentation()
+      .then(() => processCaptureRepetitions(registryRef.current, state.context.selectedFrontFrames, state.context.selectedSideFrames, state.context.heightMm, { minimumValid: 3, source: 'camera_estimate' }))
       .then((result) => send({ type: result.overallConfidence < scanConfig.confidence.mediumMin ? 'PROCESS_LOW_CONFIDENCE' : 'PROCESS_SUCCESS', ...result }))
-      .catch((error) => send({ type: 'PROCESS_ERROR', error: error.message }))
-  }, [send, state])
+      .catch((error) => { cleanup(); send({ type: 'PROCESS_ERROR', error: error.message }) })
+  }, [cleanup, send, state])
   useEffect(() => cleanup, [cleanup])
 
   const finish = () => {
     const cameraMeasurements = state.context.measurements
-    updateFlow({ measurements: mergeCameraPrefill(flow.measurements, cameraMeasurements), unit: 'cm', cameraScan: { status: 'review', pipelineVersion: PIPELINE_VERSION, heightMm: state.context.heightMm, captures: { front: state.context.selectedFrontFrames.length, side: state.context.selectedSideFrames.length }, measurements: cameraMeasurements, overallConfidence: state.context.overallConfidence, warnings: state.context.warnings } })
+    updateFlow({ measurements: mergeMeasurementPrefill(flow.measurements, cameraMeasurements, flow.unit), cameraScan: { status: 'review', pipelineVersion: PIPELINE_VERSION, heightMm: state.context.heightMm, captures: { front: state.context.selectedFrontFrames.length, side: state.context.selectedSideFrames.length }, measurements: cameraMeasurements, overallConfidence: state.context.overallConfidence, warnings: state.context.warnings } })
     cleanup(); navigate('/measurements')
   }
   const retryModels = () => { registryRef.current?.dispose(); registryRef.current = null; send({ type: 'START' }) }
@@ -91,5 +87,6 @@ export function CameraScanPage() {
     {state.matches('results') && <><MeasurementEstimateReview measurements={state.context.measurements} /><Notice>Shirt length is not directly observable because it depends on your preferred hem position. Enter and review it manually.</Notice><button className="primary-button" type="button" onClick={finish}>Review estimates in manual form</button></>}
     {state.matches('fatalError') && <Notice tone="error">Processing stopped safely: {state.context.error}. No failed measurement was converted to zero.</Notice>}
     <div className="page-actions"><button type="button" className="secondary-button" onClick={returnManual}><ArrowLeft size={17} aria-hidden="true" /> Return to manual measurements</button></div>
+    <button type="button" className="text-button" onClick={() => { cleanup(); navigate('/measurements/photos') }}>Use existing photos instead</button>
   </section>
 }

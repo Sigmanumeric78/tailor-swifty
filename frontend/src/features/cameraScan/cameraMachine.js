@@ -18,6 +18,7 @@ const machineDefinition = {
     CANCEL: { target: '.cancelled', actions: 'cleanup' },
     RETURN_TO_MANUAL: { target: '.cancelled', actions: 'cleanup' },
     CAMERA_DENIED: { target: '.permissionDenied', actions: assign({ permissionStatus: 'denied' }) },
+    PROCESS_ERROR: { target: '.fatalError', actions: assign(({ event }) => ({ error: event.error })) },
   },
   states: {
     idle: { on: { START: { target: 'requestingPermission' } } },
@@ -30,7 +31,7 @@ const machineDefinition = {
       initial: 'instructions', states: {
         instructions: { on: { START: 'aligning' } },
         aligning: { on: { QUALITY_UPDATE: { actions: storeQuality }, POSE_STABLE: { guard: 'qualityPassed', target: 'countdown', actions: assign({ stableSince: () => Date.now() }) } } },
-        countdown: { on: { QUALITY_UPDATE: [{ guard: 'eventQualityFailed', target: 'aligning', actions: storeQuality }, { actions: storeQuality }], POSE_UNSTABLE: 'aligning', COUNTDOWN_COMPLETE: 'capturingBurst' } },
+        countdown: { after: { 3000: 'capturingBurst' }, on: { QUALITY_UPDATE: [{ guard: 'eventQualityFailed', target: 'aligning', actions: storeQuality }, { actions: storeQuality }], POSE_UNSTABLE: 'aligning', COUNTDOWN_COMPLETE: 'capturingBurst' } },
         capturingBurst: { on: { BURST_COMPLETE: { target: 'review', actions: storeBurst } } },
         review: { on: { ACCEPT_CAPTURE: { guard: 'frontReady', target: '#cameraScan.side.instructions', actions: assign({ activeView: 'side' }) }, RETAKE_VIEW: { target: 'aligning', actions: 'clearFront' } } },
       },
@@ -39,7 +40,7 @@ const machineDefinition = {
       initial: 'instructions', states: {
         instructions: { on: { START: 'aligning' } },
         aligning: { on: { QUALITY_UPDATE: { actions: storeQuality }, POSE_STABLE: { guard: 'qualityPassed', target: 'countdown', actions: assign({ stableSince: () => Date.now() }) } } },
-        countdown: { on: { QUALITY_UPDATE: [{ guard: 'eventQualityFailed', target: 'aligning', actions: storeQuality }, { actions: storeQuality }], POSE_UNSTABLE: 'aligning', COUNTDOWN_COMPLETE: 'capturingBurst' } },
+        countdown: { after: { 3000: 'capturingBurst' }, on: { QUALITY_UPDATE: [{ guard: 'eventQualityFailed', target: 'aligning', actions: storeQuality }, { actions: storeQuality }], POSE_UNSTABLE: 'aligning', COUNTDOWN_COMPLETE: 'capturingBurst' } },
         capturingBurst: { on: { BURST_COMPLETE: { target: 'review', actions: storeBurst } } },
         review: { on: { ACCEPT_CAPTURE: { guard: 'bothViewsReady', target: '#cameraScan.processing' }, RETAKE_VIEW: { target: 'aligning', actions: 'clearSide' } } },
       },
