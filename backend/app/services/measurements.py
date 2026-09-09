@@ -32,6 +32,14 @@ def create_session(db: Session, payload: MeasurementSessionCreate) -> Measuremen
         protocol_version=settings.protocol_version,
         measurement_schema_version=settings.measurement_schema_version,
         status="draft",
+        input_mode=payload.input_mode,
+        capture_source=payload.capture_source,
+        calibration_mode=payload.calibration_mode,
+        confidence_version=payload.confidence_version,
+        model_versions=payload.model_versions,
+        reason_codes=payload.reason_codes,
+        device_capability_summary=payload.device_capability_summary.model_dump() if payload.device_capability_summary else None,
+        manually_reviewed=payload.manually_reviewed,
     )
     db.add(session)
     db.commit()

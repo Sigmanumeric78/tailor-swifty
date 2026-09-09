@@ -20,6 +20,13 @@ export function confidenceBand(score) {
   return 'low'
 }
 
+export function adjustQualityForWarnings(score, warnings = []) {
+  const codes = [...new Set(warnings)]
+  const multiplier = Math.max(scanConfig.confidence.minimumWarningMultiplier, 1 - codes.length * scanConfig.confidence.warningPenaltyPerCode)
+  const adjusted = clamp(score * multiplier)
+  return codes.includes('SILHOUETTE_DISAGREEMENT') ? Math.min(adjusted, scanConfig.confidence.mediumMin - 0.01) : adjusted
+}
+
 export function overallConfidence(results) {
   const observable = results.filter((result) => result.observable)
   if (observable.some((result) => result.value_mm == null)) return 0

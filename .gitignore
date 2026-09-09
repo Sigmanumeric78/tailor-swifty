@@ -11,6 +11,10 @@ research/segmentation-benchmark/datasets/images/
 research/segmentation-benchmark/datasets/masks/
 research/segmentation-benchmark/results/latest.*
 research/segmentation-benchmark/.model-cache/
+research/accuracy-pilot/data/*
+!research/accuracy-pilot/data/.gitkeep
+research/accuracy-pilot/results/*
+!research/accuracy-pilot/results/.gitkeep
 *.pyc
 *.sqlite3
 .DS_Store

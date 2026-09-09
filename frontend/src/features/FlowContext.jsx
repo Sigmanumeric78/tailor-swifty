@@ -11,7 +11,7 @@ export const initialFlow = {
   unit: 'cm',
   measurements: {},
   cameraScan: {
-    status: 'idle', pipelineVersion: null, heightMm: null, captures: {}, measurements: {}, overallConfidence: null, warnings: [],
+    status: 'idle', pipelineVersion: null, heightMm: null, captures: {}, measurements: {}, overallConfidence: null, warnings: [], calibrationMode: null, capabilitySummary: null,
   },
   secondAttempts: {},
   session: null,

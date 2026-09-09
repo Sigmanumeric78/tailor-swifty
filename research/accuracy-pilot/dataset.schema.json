@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Tailor Swifty labelled accuracy pilot row",
+  "type": "object",
+  "required": ["participant_id", "research_consent_version", "capture_protocol_version", "model_versions", "device_capability_class", "camera_view", "calibration_method", "clothing_fit_category", "estimate_mm", "ground_truth_mm", "operator_id", "measurement_code", "measurement_definition_version", "captured_at", "split"],
+  "properties": {
+    "participant_id": {"type": "string", "minLength": 8},
+    "research_consent_version": {"type": "string"}, "capture_protocol_version": {"type": "string"},
+    "model_versions": {"type": "array", "items": {"type": "string"}, "minItems": 1},
+    "device_capability_class": {"type": "string"}, "camera_view": {"enum": ["front", "side"]},
+    "calibration_method": {"enum": ["VERIFIED_HEIGHT", "PHYSICAL_REFERENCE", "NATIVE_INTRINSICS_DEPTH"]},
+    "clothing_fit_category": {"enum": ["close", "normal", "loose"]}, "repetition_id": {"type": "string"},
+    "estimate_mm": {"type": "number", "exclusiveMinimum": 0}, "ground_truth_mm": {"type": "number", "exclusiveMinimum": 0},
+    "quality_score": {"type": "number", "minimum": 0, "maximum": 1}, "retry_required": {"type": "boolean"}, "failed": {"type": "boolean"},
+    "normalized_front_width_profile": {"type": "array", "items": {"type": "number"}},
+    "normalized_side_width_profile": {"type": "array", "items": {"type": "number"}},
+    "pose_ratios": {"type": "object", "additionalProperties": {"type": "number"}},
+    "verified_height_mm": {"type": "number", "exclusiveMinimum": 0}, "optional_weight_kg": {"type": ["number", "null"], "exclusiveMinimum": 0},
+    "marker_scale_mm_per_pixel": {"type": ["number", "null"], "exclusiveMinimum": 0}, "tilt_degrees": {"type": ["number", "null"]},
+    "segmentation_disagreement": {"type": "number", "minimum": 0, "maximum": 1},
+    "operator_id": {"type": "string"}, "measurement_code": {"type": "string"}, "measurement_definition_version": {"type": "string"},
+    "captured_at": {"type": "string", "format": "date-time"}, "split": {"enum": ["train", "validation", "device_holdout"]}
+  },
+  "additionalProperties": false
+}

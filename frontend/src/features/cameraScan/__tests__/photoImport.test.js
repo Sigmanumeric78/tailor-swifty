@@ -29,7 +29,10 @@ describe('private photo import', () => {
     expect(() => validatePhotoFileMetadata(file('photo.gif', 'image/gif'))).toThrow(/JPEG, PNG, or WebP/)
   })
 
-  it('rejects HEIC with conversion guidance', () => { expect(() => validatePhotoFileMetadata(file('photo.HEIC', 'image/heic'))).toThrow(/convert HEIC\/HEIF/) })
+  it('rejects HEIC with conversion guidance without copying the filename into the error', () => {
+    expect.assertions(3)
+    try { validatePhotoFileMetadata(file('private-name.HEIC', 'image/heic')) } catch (error) { expect(error.message).toMatch(/convert HEIC\/HEIF/); expect(error.message).not.toContain('private-name'); expect(error).not.toHaveProperty('filename') }
+  })
   it('rejects oversized encoded images', () => { expect(() => validatePhotoFileMetadata(file('large.jpg', 'image/jpeg', maximumEncodedBytes + 1))).toThrow(/15 MB/) })
   it('rejects duplicate file metadata', () => { const selected = file('same.jpg', 'image/jpeg'); expect(() => validatePhotoFileMetadata(selected, new Set([validatePhotoFileMetadata(selected)]))).toThrow(/already selected/) })
 
@@ -63,5 +66,13 @@ describe('private photo import', () => {
     const { normalized } = mockDecoder()
     await expect(importPhotoFiles([file('valid.jpg', 'image/jpeg'), file('bad.gif', 'image/gif')])).rejects.toThrow()
     expect(normalized.close).toHaveBeenCalledOnce()
+  })
+
+  it('does not use network, persistent storage, blob URLs, or browser caches while decoding', async () => {
+    mockDecoder(); const fetch = vi.fn(); const xhr = vi.fn(); const socket = vi.fn(); const objectUrl = vi.fn(); const local = vi.spyOn(Storage.prototype, 'setItem')
+    vi.stubGlobal('fetch', fetch); vi.stubGlobal('XMLHttpRequest', xhr); vi.stubGlobal('WebSocket', socket); vi.stubGlobal('URL', { createObjectURL: objectUrl })
+    const sendBeacon = vi.fn(); Object.defineProperty(navigator, 'sendBeacon', { configurable: true, value: sendBeacon })
+    const photo = await decodePhotoFile(file('local.png', 'image/png')); releaseImportedPhoto(photo)
+    expect(fetch).not.toHaveBeenCalled(); expect(xhr).not.toHaveBeenCalled(); expect(socket).not.toHaveBeenCalled(); expect(sendBeacon).not.toHaveBeenCalled(); expect(objectUrl).not.toHaveBeenCalled(); expect(local).not.toHaveBeenCalled()
   })
 })

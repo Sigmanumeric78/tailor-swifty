@@ -28,3 +28,5 @@ Research-only Python dependencies are pinned in `requirements.lock.txt`: numpy 2
 The U-2-Net source repository declares Apache-2.0 for code, but the linked human-segmentation weight has no immutable version, authoritative checksum, or separately stated weight licence. It is not shipped or fetched. The benchmark adapter refuses to initialize without an explicitly supplied verified hash and official checkout. No third-party ONNX conversion is substituted.
 
 The complete manifest, byte sizes, fixed source URLs and every production per-file hash are in `frontend/public/models/camera-model-manifest.json`.
+
+No AprilTag/ArUco/ChArUco browser dependency, MediaPipe Image Segmenter model, Capacitor runtime, native depth SDK, EXIF package, size chart, or correction-model weight was added. Those boundaries use repository-owned adapters or a small local metadata parser and remain unavailable where an established exact-version dependency/asset, commercial licence, immutable checksum, and platform validation have not all been established.

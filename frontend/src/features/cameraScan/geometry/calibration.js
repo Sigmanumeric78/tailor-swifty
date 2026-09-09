@@ -9,7 +9,7 @@ export function calibrateKnownHeight({ heightMm, mask, width, height, landmarks 
   if (aspectRatio < scanConfig.calibration.aspectRatioMin || aspectRatio > scanConfig.calibration.aspectRatioMax) return failure('IMPLAUSIBLE_ASPECT_RATIO')
   const visibleFeet = landmarks.filter((point) => ['left_heel', 'right_heel', 'left_foot_index', 'right_foot_index'].includes(point.name) && point.visibility >= scanConfig.pose.landmarkVisibilityMin)
   if (landmarks.length && !visibleFeet.length) return failure('FEET_NOT_CONNECTED')
-  const landmarkYs = landmarks.filter((point) => Number.isFinite(point.y)).map((point) => point.y * height)
+  const landmarkYs = landmarks.filter((point) => Number.isFinite(point.y) && (point.visibility ?? 1) >= scanConfig.pose.landmarkVisibilityMin && (point.presence ?? 1) >= scanConfig.pose.landmarkPresenceMin).map((point) => point.y * height)
   if (landmarkYs.length) {
     const extent = Math.max(...landmarkYs) - Math.min(...landmarkYs)
     if (Math.abs(extent - bounds.height) / bounds.height > scanConfig.calibration.maskLandmarkExtentTolerance) return failure('MASK_LANDMARK_EXTENT_DISAGREEMENT')

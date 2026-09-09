@@ -1,22 +1,26 @@
 import { useEffect, useRef, useState } from 'react'
 import Webcam from 'react-webcam'
 import { scanConfig } from '../scanConfig'
+import { cameraConstraintLadder } from '../hooks/useCameraStream'
 import { evaluatePoseGate, namedLandmarks } from '../services/mediapipePoseService'
-import { analyzeImageQuality } from '../services/opencvQualityService'
+import { analyzePreviewQuality, luminanceMetrics } from '../services/opencvQualityService'
 import { QualityChecklist } from './QualityChecklist'
 
-export function CameraViewport({ registry, view, deviceId, onGranted, onDenied, onStable, onQuality, webcamRef }) {
-  const localRef = useRef(null); const activeRef = webcamRef || localRef; const history = useRef([]); const stableSince = useRef(null)
-  const callbacks = useRef({ onQuality, onStable })
-  callbacks.current = { onQuality, onStable }
-  const [quality, setQuality] = useState({ passed: false, reasonCodes: ['NO_PERSON'] })
+export function CameraViewport({ registry, view, deviceId, onGranted, onDenied, onStable, onQuality, onVideoReady = () => {}, webcamRef }) {
+  const localRef = useRef(null); const activeRef = webcamRef || localRef; const history = useRef([]); const luminanceHistory = useRef([]); const stableSince = useRef(null); const stableReported = useRef(false)
+  const callbacks = useRef({ onQuality, onStable, onVideoReady })
+  callbacks.current = { onQuality, onStable, onVideoReady }
+  const [quality, setQuality] = useState({ passed: false, hardReasonCodes: ['NO_PERSON'], warningCodes: [], reasonCodes: ['NO_PERSON'] }); const [constraintIndex, setConstraintIndex] = useState(0)
+  useEffect(() => { setConstraintIndex(0); callbacks.current.onVideoReady(false) }, [deviceId, view])
   useEffect(() => {
-    history.current = []; stableSince.current = null; setQuality({ passed: false, reasonCodes: ['NO_PERSON'] })
+    history.current = []; luminanceHistory.current = []; stableSince.current = null; stableReported.current = false; setQuality({ passed: false, hardReasonCodes: ['NO_PERSON'], warningCodes: [], reasonCodes: ['NO_PERSON'] })
     if (!registry?.liveReady) return undefined
     let cancelled = false; let busy = false
     const timer = window.setInterval(async () => {
       const video = activeRef.current?.video
       if (busy || !video || video.readyState < 2) return
+      if (!video.videoWidth || !video.videoHeight) { callbacks.current.onVideoReady(false); return }
+      callbacks.current.onVideoReady(true)
       busy = true
       let context; let output
       try {
@@ -34,21 +38,35 @@ export function CameraViewport({ registry, view, deviceId, onGranted, onDenied, 
           if (minX <= maxX && minY <= maxY) bounds = { minX, maxX, minY, maxY }
         }
         const pose = evaluatePoseGate({ poses: landmarks, view, maskBounds: bounds, history: history.current })
-        const visual = analyzeImageQuality(registry.cv, imageData, pose.motionScore === Infinity ? 0 : pose.motionScore)
-        const maskReasons = bounds ? [] : ['SEGMENTATION_UNSTABLE']
-        const combined = { ...visual, passed: pose.passed && visual.passed && Boolean(bounds), reasonCodes: [...new Set([...pose.reasonCodes, ...visual.reasonCodes, ...maskReasons])], poseQuality: pose.poseQuality }
-        if (!cancelled) { setQuality(combined); callbacks.current.onQuality(combined); if (combined.passed) { stableSince.current ||= performance.now(); if (performance.now() - stableSince.current >= scanConfig.pose.stableDurationMs) callbacks.current.onStable() } else stableSince.current = null }
+        const roiLuminance = luminanceMetrics(imageData, bounds).meanLuminance
+        const previousLuminance = luminanceHistory.current.at(-1); luminanceHistory.current.push(roiLuminance); luminanceHistory.current = luminanceHistory.current.slice(-scanConfig.pose.stableWindowFrames)
+        const imageMotion = Number.isFinite(previousLuminance) ? Math.abs(roiLuminance - previousLuminance) / 255 : 0
+        const poseMotion = pose.motionScore === Infinity ? 0 : pose.motionScore
+        const visual = analyzePreviewQuality(imageData, .8 * poseMotion + .2 * imageMotion, bounds)
+        const hardReasonCodes = [...new Set([...pose.hardReasonCodes, ...visual.hardReasonCodes, ...(bounds ? [] : ['SEGMENTATION_MISSING'])])]
+        const warningCodes = [...new Set([...pose.warningCodes, ...visual.warningCodes])]
+        const combined = { ...visual, passed: hardReasonCodes.length === 0, hardReasonCodes, warningCodes, reasonCodes: [...hardReasonCodes, ...warningCodes], poseQuality: pose.poseQuality }
+        if (!cancelled) {
+          setQuality(combined); callbacks.current.onQuality({ ...combined, timestamp: performance.now() })
+          if (combined.passed) {
+            stableSince.current ||= performance.now()
+            if (!stableReported.current && performance.now() - stableSince.current >= scanConfig.pose.stableDurationMs) { stableReported.current = true; callbacks.current.onStable() }
+          } else { stableSince.current = null; stableReported.current = false }
+        }
       } catch {
-        history.current = []; stableSince.current = null
-        const failed = { passed: false, reasonCodes: ['MODEL_UNAVAILABLE'] }
+        history.current = []; luminanceHistory.current = []; stableSince.current = null; stableReported.current = false
+        const failed = { passed: false, hardReasonCodes: ['MODEL_UNAVAILABLE'], warningCodes: [], reasonCodes: ['MODEL_UNAVAILABLE'] }
         if (!cancelled) { setQuality(failed); callbacks.current.onQuality(failed) }
       } finally {
         output?.segmentationMasks?.forEach((item) => item.close?.())
-        context?.clearRect(0, 0, context.canvas.width, context.canvas.height)
+        if (context) { context.clearRect(0, 0, context.canvas.width, context.canvas.height); context.canvas.width = 0; context.canvas.height = 0 }
         busy = false
       }
     }, 250)
     return () => { cancelled = true; window.clearInterval(timer) }
   }, [activeRef, deviceId, registry, view])
-  return <div className="camera-shell"><div className="camera-frame"><Webcam ref={activeRef} audio={false} playsInline mirrored={false} videoConstraints={{ facingMode: { ideal: 'environment' }, width: { ideal: 1920, min: 1280 }, height: { ideal: 1080, min: 720 }, ...(deviceId ? { deviceId: { exact: deviceId } } : {}) }} onUserMedia={onGranted} onUserMediaError={onDenied} /><div className="body-guide" aria-hidden="true" /></div><QualityChecklist {...quality} /></div>
+  const constraints = cameraConstraintLadder(deviceId)
+  const mediaReady = (stream) => { history.current = []; luminanceHistory.current = []; stableSince.current = null; stableReported.current = false; onGranted(stream); const video = activeRef.current?.video; callbacks.current.onVideoReady(Boolean(video?.videoWidth && video?.videoHeight)) }
+  const mediaError = (error) => { callbacks.current.onVideoReady(false); if (constraintIndex < constraints.length - 1) setConstraintIndex((index) => index + 1); else onDenied(error) }
+  return <div className="camera-shell"><div className="camera-frame"><Webcam key={`${deviceId || 'automatic'}-${constraintIndex}`} ref={activeRef} audio={false} playsInline mirrored={false} videoConstraints={constraints[constraintIndex]} onLoadedMetadata={() => { const video = activeRef.current?.video; callbacks.current.onVideoReady(Boolean(video?.videoWidth && video?.videoHeight)) }} onUserMedia={mediaReady} onUserMediaError={mediaError} /><div className="body-guide" aria-hidden="true" /></div><QualityChecklist {...quality} /></div>
 }

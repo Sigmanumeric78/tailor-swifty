@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import JSON, DateTime, ForeignKey, Index, Integer, String, UniqueConstraint, func
+from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, Index, Integer, String, UniqueConstraint, func
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -69,6 +69,14 @@ class MeasurementSession(TimestampMixin, Base):
     status: Mapped[str] = mapped_column(String(16), default="draft", index=True)
     quality_score: Mapped[int | None] = mapped_column(Integer, nullable=True)
     submission_idempotency_key: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    input_mode: Mapped[str] = mapped_column(String(32), default="MANUAL_MEASUREMENTS")
+    capture_source: Mapped[str] = mapped_column(String(24), default="manual")
+    calibration_mode: Mapped[str] = mapped_column(String(32), default="UNAVAILABLE")
+    confidence_version: Mapped[str | None] = mapped_column(String(48), nullable=True)
+    model_versions: Mapped[list[str]] = mapped_column(JsonType, default=list)
+    reason_codes: Mapped[list[str]] = mapped_column(JsonType, default=list)
+    device_capability_summary: Mapped[dict[str, Any] | None] = mapped_column(JsonType, nullable=True)
+    manually_reviewed: Mapped[bool] = mapped_column(Boolean, default=False)
 
     participant: Mapped[Participant] = relationship(back_populates="sessions")
     values: Mapped[list["MeasurementValue"]] = relationship(back_populates="session")
@@ -115,4 +123,3 @@ class RecommendationRun(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     session: Mapped[MeasurementSession] = relationship(back_populates="recommendations")
-

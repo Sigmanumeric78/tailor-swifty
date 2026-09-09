@@ -48,6 +48,19 @@ export function MeasurementPage() {
         garment_categories: ['shirt'],
         measurement_method: 'self',
         unit_entered: unit,
+        input_mode: ['review', 'photo_review'].includes(flow.cameraScan?.status) ? 'CAMERA_MEASUREMENTS' : 'MANUAL_MEASUREMENTS',
+        capture_source: flow.cameraScan?.status === 'photo_review' ? 'photo_import' : flow.cameraScan?.status === 'review' ? 'live_camera' : 'manual',
+        calibration_mode: flow.cameraScan?.calibrationMode || 'UNAVAILABLE',
+        confidence_version: flow.cameraScan?.pipelineVersion || null,
+        model_versions: [...new Set(Object.values(flow.cameraScan?.measurements || {}).flatMap((item) => item.model_versions || []))],
+        reason_codes: flow.cameraScan?.warnings || [],
+        device_capability_summary: flow.cameraScan?.capabilitySummary ? {
+          width: flow.cameraScan.capabilitySummary.width, height: flow.cameraScan.capabilitySummary.height,
+          frame_rate: flow.cameraScan.capabilitySummary.frameRate, aspect_ratio: flow.cameraScan.capabilitySummary.aspectRatio,
+          facing_mode: flow.cameraScan.capabilitySummary.facingMode, resize_mode: flow.cameraScan.capabilitySummary.resizeMode,
+          zoom: flow.cameraScan.capabilitySummary.zoom, torch_available: flow.cameraScan.capabilitySummary.torchAvailable,
+        } : null,
+        manually_reviewed: true,
       })
       const measurements = fields.flatMap((field) => {
         const attempts = [{ measurement_code: field.code, value: Number(values[field.code]), unit, attempt_number: 1 }]
@@ -80,7 +93,7 @@ export function MeasurementPage() {
         <fieldset className="segmented"><legend>Measurement unit</legend><button type="button" aria-pressed={unit === 'cm'} onClick={() => changeUnit('cm')}>cm</button><button type="button" aria-pressed={unit === 'in'} onClick={() => changeUnit('in')}>in</button></fieldset>
       </div>
       <Notice>{schemaQuery.data?.range_notice || flow.schema?.range_notice}</Notice>
-      <div className="camera-entry"><div><strong>Prefer an on-device estimate?</strong><p>Use experimental front and side views, then review every value here before submission.</p></div><div className="inline-actions"><button type="button" className="secondary-button" onClick={() => navigate('/measurements/camera')}><Camera size={17} aria-hidden="true" /> Use live camera</button><button type="button" className="secondary-button" onClick={() => navigate('/measurements/photos')}><Images size={17} aria-hidden="true" /> Use existing photos</button></div></div>
+      <div className="camera-entry"><div><strong>Prefer an on-device estimate?</strong><p>Use experimental front and side views, then review every value here before submission. Height-and-weight sizing is unavailable because no approved versioned size chart is configured.</p></div><div className="inline-actions"><button type="button" className="secondary-button" onClick={() => navigate('/measurements/camera')}><Camera size={17} aria-hidden="true" /> Use live camera</button><button type="button" className="secondary-button" onClick={() => navigate('/measurements/photos')}><Images size={17} aria-hidden="true" /> Use existing photos</button><button type="button" className="secondary-button" disabled title="UNAVAILABLE_NO_SIZE_CHART">Height &amp; weight estimate unavailable</button></div></div>
       <form onSubmit={handleSubmit(onSubmit)} className="measurement-form" noValidate>
         <div className="measurement-grid">
           {fields.map((field, index) => (

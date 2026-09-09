@@ -839,6 +839,70 @@ h2 {
   text-align: center;
 }
 
+.capture-mode {
+  display: flex;
+  width: fit-content;
+  margin: 0;
+  padding: 4px;
+  gap: 4px;
+  border: 1px solid var(--atelier-line);
+}
+
+.capture-mode legend {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+}
+
+.capture-mode button {
+  min-width: 88px;
+  min-height: 44px;
+  border: 0;
+  background: transparent;
+  color: var(--atelier-ink);
+  cursor: pointer;
+}
+
+.capture-mode button[aria-pressed="true"] {
+  background: var(--atelier-forest);
+  color: var(--atelier-surface);
+}
+
+.manual-capture-button {
+  min-height: 52px;
+  justify-self: stretch;
+}
+
+.checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-height: 44px;
+  cursor: pointer;
+}
+
+.checkbox-row input {
+  width: 22px;
+  height: 22px;
+  flex: 0 0 auto;
+}
+
+.scan-review-preview {
+  display: grid;
+  min-height: 240px;
+  overflow: hidden;
+  place-items: center;
+  background: #111;
+}
+
+.scan-review-preview canvas {
+  display: block;
+  max-width: 100%;
+  max-height: min(62vh, 640px);
+}
+
 .inline-actions {
   display: flex;
   flex-wrap: wrap;

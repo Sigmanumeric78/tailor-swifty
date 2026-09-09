@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { calibrateKnownHeight } from '../geometry/calibration'
-import { largestConnectedComponent, torsoScanlineWidth } from '../geometry/contours'
+import { largestConnectedComponent, selectTorsoConnectedComponent, torsoScanlineWidth } from '../geometry/contours'
 import { ellipseCircumference, polylineLength, shirtLengthResult } from '../geometry/measurements'
 
 const rectangle = (width, height, x1, y1, x2, y2) => { const mask = new Uint8Array(width * height); for (let y = y1; y <= y2; y += 1) for (let x = x1; x <= x2; x += 1) mask[y * width + x] = 1; return mask }
@@ -10,6 +10,15 @@ describe('calibration and contour geometry', () => {
   it('rejects a truncated silhouette', () => { expect(calibrateKnownHeight({ heightMm: 1800, mask: rectangle(400, 1000, 50, 0, 349, 949), width: 400, height: 1000 }).warnings).toContain('TRUNCATED_SILHOUETTE') })
   it('propagates larger boundary uncertainty', () => { const mask = rectangle(400, 1000, 50, 50, 349, 949); const low = calibrateKnownHeight({ heightMm: 1800, mask, width: 400, height: 1000, boundaryUncertaintyPx: 1 }); const high = calibrateKnownHeight({ heightMm: 1800, mask, width: 400, height: 1000, boundaryUncertaintyPx: 10 }); expect(high.relativeScaleUncertainty).toBeGreaterThan(low.relativeScaleUncertainty) })
   it('keeps the largest connected component', () => { const mask = rectangle(10, 10, 1, 1, 5, 5); mask[99] = 1; expect([...largestConnectedComponent(mask, 10, 10)].reduce((a, b) => a + b, 0)).toBe(25) })
+  it('selects the torso-connected component instead of a larger object', () => {
+    const mask = rectangle(20, 20, 0, 0, 7, 19); for (let y = 4; y <= 17; y += 1) for (let x = 12; x <= 16; x += 1) mask[y * 20 + x] = 1
+    const selected = selectTorsoConnectedComponent(mask, 20, 20, { left_shoulder: { x: .65, y: .3 }, right_shoulder: { x: .8, y: .3 }, left_hip: { x: .65, y: .7 }, right_hip: { x: .8, y: .7 } })
+    expect(selected[10 * 20 + 14]).toBe(1); expect(selected[10 * 20 + 2]).toBe(0)
+  })
+  it('rejects component selection when a detected pose lacks a complete torso anchor set', () => {
+    const mask = rectangle(10, 10, 2, 1, 7, 8); const selected = selectTorsoConnectedComponent(mask, 10, 10, { left_shoulder: { x: .3, y: .3 } })
+    expect([...selected].reduce((sum, value) => sum + value, 0)).toBe(0)
+  })
   it('selects the torso interval and resists one noisy row', () => { const mask = rectangle(20, 10, 7, 2, 12, 8); for (let x = 0; x < 20; x += 1) mask[5 * 20 + x] = 1; mask[4 * 20 + 1] = 1; mask[4 * 20 + 2] = 1; expect(torsoScanlineWidth(mask, 20, 10, 5, 10, 2).widthPx).toBe(6) })
   it('implements ellipse, sleeve polyline, and non-observable shirt length', () => { expect(ellipseCircumference(200, 200)).toBeCloseTo(Math.PI * 200); expect(polylineLength([{ x: 0, y: 0 }, { x: 3, y: 4 }, { x: 6, y: 8 }])).toBe(10); expect(shirtLengthResult()).toMatchObject({ value_mm: null, observable: false }) })
   it('returns null circumference when side depth is missing', () => { expect(ellipseCircumference(300, null)).toBeNull() })

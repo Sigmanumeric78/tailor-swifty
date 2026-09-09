@@ -44,4 +44,19 @@ describe('shirt measurement wizard', () => {
     await user.click(await screen.findByRole('button', { name: /^back$/i }))
     await waitFor(() => expect(screen.getByLabelText('Neck circumference')).toHaveValue(Number(measurements.neck_circumference)))
   })
+
+  it('submits only reviewed numeric and non-identifying camera provenance', async () => {
+    const user = userEvent.setup(); const fetch = vi.fn((url) => {
+      if (String(url).includes('measurement-schema')) return jsonResponse(schema)
+      if (String(url).endsWith('measurement-sessions')) return jsonResponse({ id: 'session-1' }, 201)
+      if (String(url).includes('/measurements')) return jsonResponse([], 201)
+      if (String(url).endsWith('/validate')) return jsonResponse({ valid: false, issues: [] })
+      return jsonResponse({})
+    }); vi.stubGlobal('fetch', fetch)
+    renderApp({ route: '/measurements', flow: { schema, measurements, participant: { id: 'participant-1' }, cameraScan: { status: 'review', pipelineVersion: 'camera-measurement-0.2.1', calibrationMode: 'VERIFIED_HEIGHT', measurements: { chest_circumference: { model_versions: ['pose-v1'] } }, warnings: ['SCALE_DISAGREEMENT'], capabilitySummary: { width: 1920, height: 1080, frameRate: 30, facingMode: 'environment' } } } })
+    await user.click(await screen.findByRole('button', { name: /check and continue/i }))
+    const call = fetch.mock.calls.find(([url]) => String(url).endsWith('measurement-sessions')); const payload = JSON.parse(call[1].body)
+    expect(payload).toMatchObject({ input_mode: 'CAMERA_MEASUREMENTS', capture_source: 'live_camera', calibration_mode: 'VERIFIED_HEIGHT', manually_reviewed: true })
+    expect(JSON.stringify(payload)).not.toMatch(/base64|blob|landmark|filename|device_label/i)
+  })
 })

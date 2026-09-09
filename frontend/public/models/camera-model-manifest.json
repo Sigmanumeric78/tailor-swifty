@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "pipeline_version": "camera-measurement-0.2.0",
+  "pipeline_version": "camera-measurement-0.2.1",
   "models": [
     {
       "model_id": "mediapipe-tasks-vision-wasm-1.0.1",

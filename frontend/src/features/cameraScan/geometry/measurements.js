@@ -17,6 +17,8 @@ const result = (measurement_code, value, confidence, uncertainty, evidence, warn
   evidence: { ...evidence, algorithmVersion: PIPELINE_VERSION }, warnings,
 })
 
+export function missingMeasurementResult(code, warnings = ['LANDMARKS_UNCERTAIN']) { return result(code, null, 0, null, {}, warnings) }
+
 export function circumferenceResult(code, front, side, confidence) {
   const value = ellipseCircumference(front?.widthMm, side?.widthMm)
   if (value == null) return result(code, null, 0, null, { frontWidthMm: front?.widthMm, sideDepthMm: side?.widthMm }, ['MISSING_VIEW_GEOMETRY'])

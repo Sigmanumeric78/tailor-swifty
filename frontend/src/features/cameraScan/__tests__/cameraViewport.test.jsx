@@ -11,7 +11,7 @@ vi.mock('react-webcam', async () => {
   }) }
 })
 
-vi.mock('../services/opencvQualityService', () => ({ analyzeImageQuality: () => ({ passed: true, reasonCodes: [], sharpnessScore: 100, meanLuminance: 120, darkFraction: 0, highlightFraction: 0, contrastScore: 40, motionScore: 0 }) }))
+vi.mock('../services/opencvQualityService', () => ({ analyzePreviewQuality: () => ({ passed: true, hardReasonCodes: [], warningCodes: [], reasonCodes: [], sharpnessScore: 100, meanLuminance: 120, darkFraction: 0, highlightFraction: 0, contrastScore: 40, motionScore: 0 }) }))
 
 const canvasContext = function canvasContext() { return { canvas: this, drawImage: vi.fn(), getImageData: vi.fn(() => ({ width: 640, height: 480, data: new Uint8ClampedArray(640 * 480 * 4) })), clearRect: vi.fn() } }
 
@@ -34,6 +34,6 @@ describe('camera preview analysis lifecycle', () => {
     const onQuality = vi.fn(); const registry = { liveReady: true, pose: { detect: vi.fn(async () => { throw new Error('model failed') }) }, cv: {} }
     render(<CameraViewport registry={registry} view="side" deviceId="" webcamRef={createRef()} onQuality={onQuality} onStable={() => {}} />)
     await act(async () => { vi.advanceTimersByTime(250); await Promise.resolve() })
-    expect(onQuality).toHaveBeenCalledWith({ passed: false, reasonCodes: ['MODEL_UNAVAILABLE'] })
+    expect(onQuality).toHaveBeenCalledWith(expect.objectContaining({ passed: false, hardReasonCodes: ['MODEL_UNAVAILABLE'], reasonCodes: ['MODEL_UNAVAILABLE'] }))
   })
 })

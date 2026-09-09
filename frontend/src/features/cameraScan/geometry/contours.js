@@ -28,6 +28,40 @@ export function largestConnectedComponent(mask, width, height) {
   return result
 }
 
+const pointPixels = (point, width, height) => ({ x: point.x <= 1 ? point.x * width : point.x, y: point.y <= 1 ? point.y * height : point.y })
+
+export function selectTorsoConnectedComponent(mask, width, height, landmarks = {}, proximityPx = Math.max(3, Math.round(height * .03))) {
+  const components = connectedComponents(mask, width, height)
+  const torsoPoints = ['left_shoulder', 'right_shoulder', 'left_hip', 'right_hip'].map((name) => landmarks[name]).filter((point) => point && Number.isFinite(point.x) && Number.isFinite(point.y)).map((point) => pointPixels(point, width, height))
+  if (!Object.keys(landmarks).length) return largestConnectedComponent(mask, width, height)
+  if (torsoPoints.length !== 4) return new Uint8Array(mask.length)
+  const scored = components.map((pixels) => {
+    const set = new Set(pixels)
+    const matched = torsoPoints.filter((point) => {
+      const centerX = Math.round(point.x); const centerY = Math.round(point.y)
+      for (let offsetY = -proximityPx; offsetY <= proximityPx; offsetY += 1) for (let offsetX = -proximityPx; offsetX <= proximityPx; offsetX += 1) {
+        if (offsetX ** 2 + offsetY ** 2 > proximityPx ** 2) continue
+        const x = centerX + offsetX; const y = centerY + offsetY
+        if (x >= 0 && x < width && y >= 0 && y < height && set.has(y * width + x)) return true
+      }
+      return false
+    }).length
+    return { pixels, matched }
+  }).filter((component) => component.matched === torsoPoints.length).sort((first, second) => second.pixels.length - first.pixels.length)
+  const selected = scored[0]?.pixels || []
+  const result = new Uint8Array(mask.length); selected.forEach((index) => { result[index] = 1 }); return result
+}
+
+export function fillSmallHoles(mask, width, height, maximumArea = Math.max(16, Math.round(width * height * .002))) {
+  const background = Uint8Array.from(mask, (value) => value ? 0 : 1)
+  const result = new Uint8Array(mask)
+  for (const component of connectedComponents(background, width, height)) {
+    const touchesBorder = component.some((index) => { const x = index % width; const y = Math.floor(index / width); return x === 0 || y === 0 || x === width - 1 || y === height - 1 })
+    if (!touchesBorder && component.length <= maximumArea) component.forEach((index) => { result[index] = 1 })
+  }
+  return result
+}
+
 export function maskBounds(mask, width, height) {
   let minX = width; let maxX = -1; let minY = height; let maxY = -1
   mask.forEach((value, index) => {
