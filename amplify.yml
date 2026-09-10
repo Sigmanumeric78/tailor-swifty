@@ -10,7 +10,7 @@ applications:
           commands:
             - export VITE_CAMERA_PROCESSING_MODE=server
             - npm run models:prepare
-            - npm test -- --run
+            - npm run test:server
             - npm run build
       artifacts:
         baseDirectory: dist

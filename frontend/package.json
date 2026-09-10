@@ -12,6 +12,8 @@
     "build": "vite build",
     "postbuild": "node scripts/verify-server-build.mjs",
     "test": "vitest",
+    "test:browser": "VITE_CAMERA_PROCESSING_MODE=browser-research vitest --run --exclude src/features/cameraScan/__tests__/serverPages.test.jsx",
+    "test:server": "VITE_CAMERA_PROCESSING_MODE=server vitest --run --exclude src/features/cameraScan/__tests__/browserRoutes.test.jsx --exclude src/features/cameraScan/__tests__/photoPage.test.jsx",
     "preview": "vite preview"
   },
   "dependencies": {
