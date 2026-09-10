@@ -19,8 +19,8 @@ export function ReviewPage() {
     setError(null)
     setSubmitting(true)
     try {
-      await api.submit(flow.session.id, keys.current.submit)
-      const result = await api.recommend({ measurement_session_id: flow.session.id, preferences: flow.preferences }, keys.current.recommendation)
+      await api.submit(flow.session.id, keys.current.submit, flow.participant?.participant_access_token)
+      const result = await api.recommend({ measurement_session_id: flow.session.id, preferences: flow.preferences }, keys.current.recommendation, flow.participant?.participant_access_token)
       updateFlow({ result })
       navigate(`/results/${result.id}`)
     } catch (requestError) {

@@ -48,8 +48,8 @@ export function MeasurementPage() {
         garment_categories: ['shirt'],
         measurement_method: 'self',
         unit_entered: unit,
-        input_mode: ['review', 'photo_review'].includes(flow.cameraScan?.status) ? 'CAMERA_MEASUREMENTS' : 'MANUAL_MEASUREMENTS',
-        capture_source: flow.cameraScan?.status === 'photo_review' ? 'photo_import' : flow.cameraScan?.status === 'review' ? 'live_camera' : 'manual',
+        input_mode: ['review', 'photo_review', 'server_review', 'server_photo_review'].includes(flow.cameraScan?.status) ? 'CAMERA_MEASUREMENTS' : 'MANUAL_MEASUREMENTS',
+        capture_source: ['server_review', 'server_photo_review'].includes(flow.cameraScan?.status) ? 'SERVER_CAMERA' : flow.cameraScan?.status === 'photo_review' ? 'photo_import' : flow.cameraScan?.status === 'review' ? 'live_camera' : 'manual',
         calibration_mode: flow.cameraScan?.calibrationMode || 'UNAVAILABLE',
         confidence_version: flow.cameraScan?.pipelineVersion || null,
         model_versions: [...new Set(Object.values(flow.cameraScan?.measurements || {}).flatMap((item) => item.model_versions || []))],
@@ -61,14 +61,14 @@ export function MeasurementPage() {
           zoom: flow.cameraScan.capabilitySummary.zoom, torch_available: flow.cameraScan.capabilitySummary.torchAvailable,
         } : null,
         manually_reviewed: true,
-      })
+      }, flow.participant?.participant_access_token)
       const measurements = fields.flatMap((field) => {
         const attempts = [{ measurement_code: field.code, value: Number(values[field.code]), unit, attempt_number: 1 }]
         if (values.second?.[field.code]) attempts.push({ measurement_code: field.code, value: Number(values.second[field.code]), unit, attempt_number: 2 })
         return attempts
       })
-      await api.measurements(session.id, measurements)
-      const validation = await api.validate(session.id)
+      await api.measurements(session.id, measurements, flow.participant?.participant_access_token)
+      const validation = await api.validate(session.id, flow.participant?.participant_access_token)
       validation.issues.filter((issue) => issue.level === 'error').forEach((issue) => setError(issue.field, { type: 'server', message: issue.message }))
       updateFlow({ session, validation })
       if (validation.valid) navigate('/preferences')
@@ -93,7 +93,7 @@ export function MeasurementPage() {
         <fieldset className="segmented"><legend>Measurement unit</legend><button type="button" aria-pressed={unit === 'cm'} onClick={() => changeUnit('cm')}>cm</button><button type="button" aria-pressed={unit === 'in'} onClick={() => changeUnit('in')}>in</button></fieldset>
       </div>
       <Notice>{schemaQuery.data?.range_notice || flow.schema?.range_notice}</Notice>
-      <div className="camera-entry"><div><strong>Prefer an on-device estimate?</strong><p>Use experimental front and side views, then review every value here before submission. Height-and-weight sizing is unavailable because no approved versioned size chart is configured.</p></div><div className="inline-actions"><button type="button" className="secondary-button" onClick={() => navigate('/measurements/camera')}><Camera size={17} aria-hidden="true" /> Use live camera</button><button type="button" className="secondary-button" onClick={() => navigate('/measurements/photos')}><Images size={17} aria-hidden="true" /> Use existing photos</button><button type="button" className="secondary-button" disabled title="UNAVAILABLE_NO_SIZE_CHART">Height &amp; weight estimate unavailable</button></div></div>
+      <div className="camera-entry"><div><strong>Prefer an experimental camera estimate?</strong><p>Compressed front and side photographs are sent one at a time over HTTPS to a volatile-memory AWS processor, then every numeric estimate returns here for manual review. Photographs are not intentionally persisted. Height-and-weight sizing is unavailable because no approved versioned size chart is configured.</p></div><div className="inline-actions"><button type="button" className="secondary-button" onClick={() => navigate('/measurements/camera')}><Camera size={17} aria-hidden="true" /> Use live camera</button><button type="button" className="secondary-button" onClick={() => navigate('/measurements/photos')}><Images size={17} aria-hidden="true" /> Use existing photos</button><button type="button" className="secondary-button" disabled title="UNAVAILABLE_NO_SIZE_CHART">Height &amp; weight estimate unavailable</button></div></div>
       <form onSubmit={handleSubmit(onSubmit)} className="measurement-form" noValidate>
         <div className="measurement-grid">
           {fields.map((field, index) => (
@@ -103,8 +103,8 @@ export function MeasurementPage() {
               <div className="measurement-entry">
                 <div className="input-with-unit"><input id={field.code} type="number" inputMode="decimal" step="0.01" aria-invalid={Boolean(errors[field.code])} aria-describedby={`${field.code}-instruction${errors[field.code] ? ` ${field.code}-error` : ''}`} {...register(field.code, { required: `${field.label} is required.`, min: { value: 0.01, message: 'Enter a value greater than zero.' } })} /><span>{unit}</span></div>
                 {errors[field.code] && <span className="field-error" id={`${field.code}-error`} role="alert">{errors[field.code].message}</span>}
-                {flow.cameraScan?.measurements?.[field.code]?.value_mm != null && <span className="camera-provenance">{flow.cameraScan.measurements[field.code].source === 'photo_estimate' ? 'Photo estimate' : 'Camera estimate'} · pipeline quality {Math.round(flow.cameraScan.measurements[field.code].confidence * 100)}/100{flow.cameraScan.measurements[field.code].uncertainty_mm ? ` · ±${(flow.cameraScan.measurements[field.code].uncertainty_mm / (unit === 'cm' ? 10 : 25.4)).toFixed(2)} ${unit}` : ''} · not a validated accuracy probability</span>}
-                {field.code === 'shirt_length' && ['review', 'photo_review'].includes(flow.cameraScan?.status) && <span className="camera-provenance">Manual entry required · preferred hem is not observable</span>}
+                {flow.cameraScan?.measurements?.[field.code]?.value_mm != null && <span className="camera-provenance">{flow.cameraScan.measurements[field.code].source === 'photo_estimate' ? 'Photo estimate' : flow.cameraScan.measurements[field.code].source === 'SERVER_CAMERA' ? 'Server camera estimate' : 'Camera estimate'} · pipeline quality {Math.round(flow.cameraScan.measurements[field.code].confidence * 100)}/100{flow.cameraScan.measurements[field.code].uncertainty_mm ? ` · ±${(flow.cameraScan.measurements[field.code].uncertainty_mm / (unit === 'cm' ? 10 : 25.4)).toFixed(2)} ${unit}` : ''} · not a validated accuracy probability</span>}
+                {field.code === 'shirt_length' && ['review', 'photo_review', 'server_review', 'server_photo_review'].includes(flow.cameraScan?.status) && <span className="camera-provenance">Manual entry required · preferred hem is not observable</span>}
                 {!repeats.has(field.code) ? (
                   <button type="button" className="text-button" onClick={() => setRepeats((current) => new Set(current).add(field.code))}><Plus size={14} aria-hidden="true" /> Add repeat</button>
                 ) : (

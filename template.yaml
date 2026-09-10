@@ -10,7 +10,11 @@ Parameters:
 
   AllowedOrigins:
     Type: String
-    Default: "*"
+    Default: "https://example.invalid"
+
+  CameraProcessingSigningKeyParameterName:
+    Type: String
+    Default: /tailor-swifty/production/camera-processing-signing-key
 
 Globals:
   Function:
@@ -19,17 +23,6 @@ Globals:
       - x86_64
     MemorySize: 512
     Timeout: 30
-    Environment:
-      Variables:
-        APP_ENV: production
-        DATABASE_URL_PARAMETER_NAME: !Ref DatabaseUrlParameterName
-        ALLOWED_ORIGINS: !Ref AllowedOrigins
-        CONSENT_VERSION: "1"
-        MEASUREMENT_SCHEMA_VERSION: "1"
-        PROTOCOL_VERSION: "1"
-        RULES_VERSION: "1"
-        CATALOG_VERSION: "1"
-        REPEAT_TOLERANCE_MM: "10"
 
 Resources:
   TailorApiFunction:
@@ -38,6 +31,20 @@ Resources:
       CodeUri: backend/
       Handler: app.main.handler
       Description: Tailor Swifty FastAPI backend
+      Environment:
+        Variables:
+          APP_ENV: production
+          DATABASE_URL_PARAMETER_NAME: !Ref DatabaseUrlParameterName
+          ALLOWED_ORIGINS: !Ref AllowedOrigins
+          CONSENT_VERSION: "1"
+          CAMERA_PROCESSING_CONSENT_VERSION: "server-camera-consent-1"
+          CAMERA_PROCESSING_SIGNING_PARAMETER_NAME: !Ref CameraProcessingSigningKeyParameterName
+          PARTICIPANT_ACCESS_TTL_SECONDS: "1800"
+          MEASUREMENT_SCHEMA_VERSION: "1"
+          PROTOCOL_VERSION: "1"
+          RULES_VERSION: "1"
+          CATALOG_VERSION: "1"
+          REPEAT_TOLERANCE_MM: "10"
       Policies:
         - Version: "2012-10-17"
           Statement:
@@ -45,6 +52,42 @@ Resources:
               Action:
                 - ssm:GetParameter
               Resource: !Sub "arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter${DatabaseUrlParameterName}"
+            - Effect: Allow
+              Action:
+                - ssm:GetParameter
+              Resource: !Sub "arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter${CameraProcessingSigningKeyParameterName}"
+      FunctionUrlConfig:
+        AuthType: NONE
+        InvokeMode: BUFFERED
+
+  CameraProcessorFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: makefile
+    Properties:
+      CodeUri: camera_processor/
+      Handler: app.handler
+      Runtime: python3.12
+      Architectures:
+        - x86_64
+      Description: Stateless in-memory Tailor Swifty camera processor
+      MemorySize: 2048
+      Timeout: 60
+      EphemeralStorage:
+        Size: 512
+      ReservedConcurrentExecutions: 2
+      Environment:
+        Variables:
+          ALLOWED_ORIGINS: !Ref AllowedOrigins
+          CAMERA_PROCESSING_SIGNING_PARAMETER_NAME: !Ref CameraProcessingSigningKeyParameterName
+          POSE_MODEL_PATH: /var/task/models/pose_landmarker_full.task
+      Policies:
+        - Version: "2012-10-17"
+          Statement:
+            - Effect: Allow
+              Action:
+                - ssm:GetParameter
+              Resource: !Sub "arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter${CameraProcessingSigningKeyParameterName}"
       FunctionUrlConfig:
         AuthType: NONE
         InvokeMode: BUFFERED
@@ -57,3 +100,11 @@ Outputs:
   ApiUrl:
     Description: Public Lambda Function URL
     Value: !GetAtt TailorApiFunctionUrl.FunctionUrl
+
+  CameraProcessorFunctionName:
+    Description: Camera processor Lambda function name
+    Value: !Ref CameraProcessorFunction
+
+  CameraProcessorUrl:
+    Description: Camera processor Lambda Function URL
+    Value: !GetAtt CameraProcessorFunctionUrl.FunctionUrl

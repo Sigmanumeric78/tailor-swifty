@@ -1,10 +1,12 @@
-# Experimental camera measurement pipeline
+# Experimental camera measurement pipelines
 
-Pipeline version: `camera-measurement-0.2.1`.
+Production pipeline version: `server-camera-0.1.0`. Browser-research pipeline version: `camera-measurement-0.2.1`.
 
 ## Architecture and data flow
 
-The `/measurements/camera` and `/measurements/photos` routes are lazy-loaded. Nothing requests camera permission or imports the vision runtimes merely by opening either route. Live-camera permission is requested only after **Start camera scan**; photo models initialize only after **Process photos locally**. React Webcam owns the live video element, `useCameraStream` tracks and stops every stream track, and all image processing occurs in browser memory. Preview frames are reduced to at most 640 px for gates. Accepted captures use source resolution, exist as `ImageBitmap` objects only, and are closed on completion, cancellation, error, or unmount.
+Production and preview builds use the synchronous server pipeline documented in [server-camera-processing.md](./server-camera-processing.md). The browser corrects orientation, downsizes and canvas-re-encodes one JPEG/WebP at a time, sends that one photograph over HTTPS, and releases its bitmap/canvas/base64 references when the request settles. A dedicated Lambda uses MediaPipe and OpenCV in memory and returns a signed compact observation. Front and side raw pixels never coexist in one processor invocation; finalization combines signed observations without either photograph. No runtime S3, SQS, DynamoDB, EFS, image database field, or browser persistent storage is used.
+
+`VITE_CAMERA_PROCESSING_MODE=browser-research` retains the prior local pipeline for explicit research only. In that mode, the `/measurements/camera` and `/measurements/photos` routes are lazy-loaded. Nothing requests camera permission or imports vision runtimes merely by opening either route. Live-camera permission is requested only after **Start camera scan**; photo models initialize only after **Process photos locally**. React Webcam owns the live video element, `useCameraStream` tracks and stops every stream track, and all image processing occurs in browser memory. Preview frames are reduced to at most 640 px for gates. Accepted captures use source resolution, exist as `ImageBitmap` objects only, and are closed on completion, cancellation, error, or unmount.
 
 ```text
 phone camera -> reduced preview -> MediaPipe hard gates + native advisory checks
@@ -18,7 +20,7 @@ phone camera -> reduced preview -> MediaPipe hard gates + native advisory checks
              -> existing manual form review -> backward-compatible backend submission
 ```
 
-No raw image, selected `File`, base64 frame, face, mask, landmark, contour, EXIF blob, or biometric pixel is sent to FastAPI, Lambda, Neon, analytics, storage APIs, or logs. Only reviewed numeric estimates and non-identifying provenance enter `FlowContext`. The session contract has additive optional provenance fields (input mode, capture source, calibration mode, pipeline/model versions, reason codes, a normalized capability summary, and manual-review status); legacy requests receive safe defaults.
+In browser-research mode, no raw image, selected `File`, base64 frame, face, mask, landmark, contour, EXIF blob, or biometric pixel is sent outside the browser. In server mode, one stripped and compressed photograph is intentionally sent to the processor and is not intentionally persisted. In both modes, only reviewed numeric estimates and non-identifying provenance enter `FlowContext` and the existing submission flow. The session contract has additive optional provenance fields; legacy requests receive safe defaults.
 
 ## State machine
 
@@ -53,7 +55,7 @@ Selected files and decoded bitmaps stay in component-local memory. No thumbnails
 
 ## Locked dependencies and models
 
-Production packages are exactly pinned in `frontend/package.json`: react-webcam 7.2.0, XState 5.32.6, @xstate/react 6.1.0, MediaPipe Tasks Vision 1.0.1, Body Segmentation 1.0.2, TensorFlow.js core/converter/WebGL/WASM 4.22.0, and TechStark OpenCV.js 5.0.0-release.1.
+Browser-research packages are exactly pinned in `frontend/package.json`: react-webcam 7.2.0, XState 5.32.6, @xstate/react 6.1.0, MediaPipe Tasks Vision 1.0.1, Body Segmentation 1.0.2, TensorFlow.js core/converter/WebGL/WASM 4.22.0, and TechStark OpenCV.js 5.0.0-release.1. They are excluded from production output by the mode-specific Vite route alias and server-build verification.
 
 The committed model manifest contains per-file sizes and SHA-256 values. Primary model identities are:
 
@@ -61,7 +63,7 @@ The committed model manifest contains per-file sizes and SHA-256 values. Primary
 - BodyPix ResNet50 stride 16 quant2: aggregate `39c74c47e7212bc3cf82b512ccfd58cb6502d8d131b0280697879f8fb572a9e9`, 47,993,528 bytes across model JSON and 12 shards, production.
 - U2Net human segmentation: research-only and disabled. Its official repository link does not provide an immutable weight version, published SHA-256, or separate weight licence; no substitute is used.
 
-MediaPipe and TensorFlow WASM runtime files are also versioned, hashed, and loaded from `/models`. Production never fetches model weights from a runtime CDN.
+MediaPipe and TensorFlow WASM runtime files are also versioned and hashed for browser research. Server-mode builds neither copy nor request them. The server Pose Landmarker model is packaged into its Lambda artifact and verified against the same locked SHA-256; it is never fetched during an invocation.
 
 ## Gates and provisional thresholds
 
@@ -81,7 +83,7 @@ BodyPix imports and registers the WebGL backend and checks the boolean result of
 
 Camera acquisition uses a negotiable ladder: ideal rear-facing 1920×1080, ideal 1280×720, then browser-selected resolution, with no mandatory minimum dimensions. Once permission exposes device identifiers, an explicit selection uses the same ladder with an exact `deviceId`; that selection persists across front and side. A changed active device produces a retake warning rather than silently mixing lenses. The ephemeral capability summary includes only dimensions, rate/aspect ratio, facing/resize mode, zoom/focus ranges, current zoom, and torch availability—never labels, user agent, or guessed focal length. A supported 1.0 zoom ratio is requested, but is not treated as physical calibration. Optional device-orientation permission is requested only from its button and provides roll/pitch guidance; denial or absence never blocks capture. Frames retain aspect ratio and `playsInline` remains enabled.
 
-OpenCV remains a large lazy chunk (approximately 15.5 MB minified in the current build). It is route and action deferred, but this release does not claim that chunk was optimized away.
+OpenCV remains a large lazy chunk (approximately 15.5 MB minified) only in a browser-research build. It is absent from the server-mode frontend bundle; the processor instead packages pinned `opencv-python-headless`.
 
 ## Calibration and measurement geometry
 
@@ -125,7 +127,9 @@ See `research/segmentation-benchmark/README.md`. The harness applies EXIF orient
 
 ## Performance evidence
 
-The audited pre-change build for this session produced an initial application chunk of 135.89 kB minified, a 74.47 kB camera-page chunk, a 9.55 kB photo-page chunk, and a lazy OpenCV chunk of 15,514.56 kB (3,906.10 kB gzip). The final build produced 135.89 kB (34.18 kB gzip), 80.39 kB (25.99 kB gzip), 13.12 kB (5.45 kB gzip), and 15,514.56 kB (3,906.10 kB gzip), respectively. The initial non-camera chunk remained unchanged; capability, readiness, provider, EXIF, and provenance code increased only lazy/feature chunks. Model/runtime bytes are recorded exactly in the manifest; browser-requested bytes depend on the runtime-selected MediaPipe and TensorFlow WASM variant, so they are not summed into a fictitious mobile transfer number. The registry records MediaPipe, OpenCV and BodyPix initialization, bounded per-image inference samples, first detection time, capture-processing time, and peak retained image count in memory only. It transmits none of them. No mobile initialization or inference timings are claimed without physical-device execution.
+The audited pre-change browser build produced an initial application chunk of 135.89 kB minified, an 80.39 kB camera page, a 13.12 kB photo page, a 15,514.56 kB OpenCV chunk (3,906.10 kB gzip), and copied 94,018,799 bytes of verified browser model/runtime assets. The server-mode build produces a 266.89 kB initial chunk (85.20 kB gzip), 9.43 kB camera page, 6.86 kB photo page, and 357,891 bytes of JavaScript in total. It contains zero browser CV model/runtime files or references. These are desktop build artifact measurements, not network or mobile benchmarks.
+
+The processor artifact is 237,210,838 bytes extracted and approximately 85,029,360 bytes as a conventional ZIP. In the matching Lambda Python 3.12 image, model initialization on this host took 267.010 ms and two warm synthetic no-person rejection paths took 39.493 ms and 31.247 ms. Those are local Docker rejection-path observations, not accepted full-pipeline latency and not AWS production results. No real-person, mobile, cold Lambda, peak-memory, or 1024/1769/2048/3008 MB comparative benchmark is claimed.
 
 ## Input modes and research boundaries
 

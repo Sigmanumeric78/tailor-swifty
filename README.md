@@ -1,13 +1,13 @@
 # Tailored Outfit Platform
 
-A local-first adult shirt fitting workflow. The React application collects eight backend-defined measurements and style preferences; FastAPI validates and normalizes the data, then a versioned deterministic rule engine stores and returns one explainable recommendation.
+A privacy-bounded adult shirt fitting workflow. The React application collects eight backend-defined measurements and style preferences; FastAPI validates and normalizes the data, then a versioned deterministic rule engine stores and returns one explainable recommendation. The experimental server-camera mode transmits one stripped, compressed photograph at a time to a separate stateless in-memory processor and persists only reviewed numeric results.
 
-This is the first vertical slice from the included implementation blueprint. It uses no cloud services, external APIs, machine learning, or GPU.
+The manual workflow remains the primary validated product path. The camera workflow uses MediaPipe/OpenCV but has not been validated for measurement accuracy; see `docs/server-camera-processing.md`.
 
 ## Implemented scope
 
 - Adult consent for the `generate_outfit_recommendation` purpose
-- Random non-identifying participant codes
+- Random non-identifying participant codes protected by short-lived participant access tokens
 - Backend-owned versioned shirt measurement schema
 - Centimetre and inch input normalized to integer millimetres
 - Repeat attempts, broad-range warnings, cross-field checks, and third-attempt warnings
@@ -115,6 +115,7 @@ GET  /api/v1/measurement-schema?garments=shirt
 GET  /api/v1/catalog?category=shirt
 POST /api/v1/participants
 POST /api/v1/consents/start
+POST /api/v1/camera-processing/session
 POST /api/v1/measurement-sessions
 POST /api/v1/measurement-sessions/{id}/measurements
 POST /api/v1/measurement-sessions/{id}/validate
@@ -122,6 +123,10 @@ POST /api/v1/measurement-sessions/{id}/submit
 POST /api/v1/recommendations
 GET  /api/v1/recommendations/{id}
 ```
+
+The separate processor Function URL exposes `POST /analyze` and `POST /finalize`. It requires short-lived signed sessions and intentionally has no image persistence or runtime S3 permission.
+
+`POST /api/v1/participants` returns a 30-minute HMAC-signed participant access token. Every route that creates consent or operates on that participant's measurement sessions and recommendations requires it as `Authorization: Bearer <token>`. The token is bound to the participant UUID and remains only in React memory; it is never persisted or placed in a URL. A page refresh intentionally restarts the anonymous fitting session. Participant access, camera sessions, front observations, and side observations use distinct token-purpose values so they cannot substitute for one another.
 
 Final submission and recommendation creation require an `Idempotency-Key` header. Keys are protected with database uniqueness constraints.
 

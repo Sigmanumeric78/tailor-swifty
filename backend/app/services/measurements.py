@@ -1,5 +1,6 @@
 import statistics
 import uuid
+import re
 from collections import defaultdict
 
 from sqlalchemy.exc import IntegrityError
@@ -15,6 +16,12 @@ from app.services.units import to_millimetres
 
 
 PURPOSE = "generate_outfit_recommendation"
+IDEMPOTENCY_KEY = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$")
+
+
+def require_safe_idempotency_key(value: str) -> None:
+    if not IDEMPOTENCY_KEY.fullmatch(value):
+        raise DomainError(400, "IDEMPOTENCY_KEY_INVALID", "Provide a non-sensitive alphanumeric idempotency key")
 
 
 def create_session(db: Session, payload: MeasurementSessionCreate) -> MeasurementSession:
@@ -124,6 +131,7 @@ def validate_session(db: Session, session_id: uuid.UUID) -> dict:
 def submit_session(db: Session, session_id: uuid.UUID, idempotency_key: str) -> MeasurementSession:
     if not idempotency_key.strip():
         raise DomainError(400, "IDEMPOTENCY_KEY_REQUIRED", "Idempotency-Key header is required")
+    require_safe_idempotency_key(idempotency_key)
     session = get_session(db, session_id)
     if not session:
         raise DomainError(404, "SESSION_NOT_FOUND", "Measurement session was not found")

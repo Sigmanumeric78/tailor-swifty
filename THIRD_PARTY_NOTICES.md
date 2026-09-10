@@ -1,4 +1,18 @@
-# Third-party notices — camera measurement experiment
+# Third-party notices — camera measurement experiments
+
+## Server processor production dependencies
+
+| Component | Exact version | Licence | Upstream | Purpose |
+|---|---:|---|---|---|
+| mediapipe | 0.10.21 | Apache-2.0 | https://github.com/google-ai-edge/mediapipe | Server Pose Landmarker and primary segmentation |
+| numpy | 1.26.4 | BSD-3-Clause | https://github.com/numpy/numpy | In-memory numeric image operations |
+| opencv-python-headless | 4.10.0.84 | Apache-2.0 | https://github.com/opencv/opencv-python | In-memory decode, quality, morphology and contours |
+| protobuf | 4.25.8 | BSD-3-Clause | https://github.com/protocolbuffers/protobuf | MediaPipe task data runtime |
+| absl-py | 2.3.1 | Apache-2.0 | https://github.com/abseil/abseil-py | MediaPipe runtime support |
+| attrs | 25.4.0 | MIT | https://github.com/python-attrs/attrs | MediaPipe task runtime support |
+| flatbuffers | 25.9.23 | Apache-2.0 | https://github.com/google/flatbuffers | MediaPipe task model/runtime data |
+
+## Browser-research dependencies
 
 | Component | Exact version | Licence | Upstream | Purpose |
 |---|---:|---|---|---|
@@ -19,14 +33,14 @@ Research-only Python dependencies are pinned in `requirements.lock.txt`: numpy 2
 
 | Asset | Source/version | SHA-256 | Status |
 |---|---|---|---|
-| MediaPipe Pose Landmarker Full float16 | Official Google `pose_landmarker_full/float16/1` | `5134a3aad27a58b93da0088d431f366da362b44e3ccfbe3462b3827a839011b1` | Production, Apache-2.0 |
-| BodyPix ResNet50 stride16 quant2 | Official TensorFlow.js BodyPix storage; package git `dd5f6ac96e71b7994647534975cbfb614097b8f3` | Aggregate `39c74c47e7212bc3cf82b512ccfd58cb6502d8d131b0280697879f8fb572a9e9`; per-file hashes in manifest | Production, Apache-2.0 |
-| MediaPipe Tasks Vision WASM | npm package 1.0.1 | Per-file hashes in manifest | Production runtime, Apache-2.0 |
-| TensorFlow.js WASM backend | npm package 4.22.0 | Per-file hashes in manifest | Production fallback, Apache-2.0 |
+| MediaPipe Pose Landmarker Full float16 | Official Google `pose_landmarker_full/float16/1` | `5134a3aad27a58b93da0088d431f366da362b44e3ccfbe3462b3827a839011b1` | Server production package and browser research, Apache-2.0 |
+| BodyPix ResNet50 stride16 quant2 | Official TensorFlow.js BodyPix storage; package git `dd5f6ac96e71b7994647534975cbfb614097b8f3` | Aggregate `39c74c47e7212bc3cf82b512ccfd58cb6502d8d131b0280697879f8fb572a9e9`; per-file hashes in manifest | Browser research only, Apache-2.0 |
+| MediaPipe Tasks Vision WASM | npm package 1.0.1 | Per-file hashes in manifest | Browser research runtime, Apache-2.0 |
+| TensorFlow.js WASM backend | npm package 4.22.0 | Per-file hashes in manifest | Browser research fallback, Apache-2.0 |
 | `u2net_human_seg.pth` | Official U-2-Net repository link | Unresolved—no authoritative published SHA-256 | Disabled research candidate |
 
 The U-2-Net source repository declares Apache-2.0 for code, but the linked human-segmentation weight has no immutable version, authoritative checksum, or separately stated weight licence. It is not shipped or fetched. The benchmark adapter refuses to initialize without an explicitly supplied verified hash and official checkout. No third-party ONNX conversion is substituted.
 
-The complete manifest, byte sizes, fixed source URLs and every production per-file hash are in `frontend/public/models/camera-model-manifest.json`.
+The browser-research manifest, byte sizes, fixed source URLs and per-file hashes are in `frontend/public/models/camera-model-manifest.json`. The server model has a separate minimal manifest in `camera_processor/model-manifest.json`; the build verifies it before packaging.
 
 No AprilTag/ArUco/ChArUco browser dependency, MediaPipe Image Segmenter model, Capacitor runtime, native depth SDK, EXIF package, size chart, or correction-model weight was added. Those boundaries use repository-owned adapters or a small local metadata parser and remain unavailable where an established exact-version dependency/asset, commercial licence, immutable checksum, and platform validation have not all been established.

@@ -7,8 +7,10 @@
     "dev": "vite",
     "models:fetch": "node scripts/fetch-camera-models.mjs",
     "models:verify": "node scripts/verify-camera-models.mjs",
-    "prebuild": "npm run models:fetch && npm run models:verify",
+    "models:prepare": "node scripts/prepare-camera-models.mjs",
+    "prebuild": "npm run models:prepare",
     "build": "vite build",
+    "postbuild": "node scripts/verify-server-build.mjs",
     "test": "vitest",
     "preview": "vite preview"
   },

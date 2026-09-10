@@ -7,7 +7,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 class ContractModel(BaseModel):
-    model_config = ConfigDict(from_attributes=True, allow_inf_nan=False)
+    model_config = ConfigDict(from_attributes=True, allow_inf_nan=False, extra="forbid")
 
 
 class ParticipantCreate(ContractModel):
@@ -19,11 +19,13 @@ class ParticipantResponse(ContractModel):
     public_code: str
     status: str
     created_at: datetime
+    participant_access_token: str
+    access_token_expires_at: int
 
 
 class ConsentStart(ContractModel):
     participant_id: uuid.UUID
-    purpose: Literal["generate_outfit_recommendation"] = "generate_outfit_recommendation"
+    purpose: Literal["generate_outfit_recommendation", "server_camera_processing"] = "generate_outfit_recommendation"
     granted: bool
 
 
@@ -56,6 +58,7 @@ class MeasurementSchemaResponse(ContractModel):
 
 
 SafeCode = Annotated[str, Field(min_length=1, max_length=96, pattern=r"^[A-Za-z0-9][A-Za-z0-9._-]*$")]
+SafePreference = Annotated[str, Field(min_length=1, max_length=48, pattern=r"^[A-Za-z0-9][A-Za-z0-9 ._-]*$")]
 
 
 class DeviceCapabilitySummary(ContractModel):
@@ -77,7 +80,7 @@ class MeasurementSessionCreate(ContractModel):
     measurement_method: Literal["self", "assisted", "professional"] = "self"
     unit_entered: Literal["cm", "in"]
     input_mode: Literal["MANUAL_MEASUREMENTS", "CAMERA_MEASUREMENTS", "HEIGHT_WEIGHT_SIZE_ESTIMATE"] = "MANUAL_MEASUREMENTS"
-    capture_source: Literal["manual", "live_camera", "photo_import", "height_weight"] = "manual"
+    capture_source: Literal["manual", "live_camera", "photo_import", "height_weight", "SERVER_CAMERA"] = "manual"
     calibration_mode: Literal["VERIFIED_HEIGHT", "PHYSICAL_REFERENCE", "NATIVE_INTRINSICS_DEPTH", "UNAVAILABLE"] = "UNAVAILABLE"
     confidence_version: str | None = Field(default=None, min_length=1, max_length=48, pattern=r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
     model_versions: list[SafeCode] = Field(default_factory=list, max_length=12)
@@ -106,6 +109,20 @@ class MeasurementSessionResponse(ContractModel):
     reason_codes: list[str]
     device_capability_summary: DeviceCapabilitySummary | None
     manually_reviewed: bool
+
+
+class CameraProcessingSessionCreate(ContractModel):
+    model_config = ConfigDict(from_attributes=True, allow_inf_nan=False, extra="forbid")
+    participant_id: uuid.UUID
+    server_image_processing_consent: Literal[True]
+
+
+class CameraProcessingSessionResponse(ContractModel):
+    session_token: str
+    token_schema_version: str
+    pipeline_version: str
+    expires_at: int
+    allowed_view_count: int
 
 
 class MeasurementAttempt(ContractModel):
@@ -148,10 +165,10 @@ class Preferences(ContractModel):
     occasion: Literal["office", "smart-casual", "casual", "travel"]
     climate: Literal["hot", "humid", "mild", "cool"]
     fit: Literal["slim", "regular", "relaxed"]
-    styles: list[str] = Field(default_factory=list, max_length=5)
-    colours: list[str] = Field(default_factory=list, max_length=5)
-    preferred_fabrics: list[str] = Field(default_factory=list, max_length=5)
-    avoid_fabrics: list[str] = Field(default_factory=list, max_length=5)
+    styles: list[SafePreference] = Field(default_factory=list, max_length=5)
+    colours: list[SafePreference] = Field(default_factory=list, max_length=5)
+    preferred_fabrics: list[SafePreference] = Field(default_factory=list, max_length=5)
+    avoid_fabrics: list[SafePreference] = Field(default_factory=list, max_length=5)
 
 
 class RecommendationCreate(ContractModel):

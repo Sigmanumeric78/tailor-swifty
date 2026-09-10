@@ -1,4 +1,4 @@
-from tests.conftest import build_session
+from tests.conftest import build_session, create_test_participant
 
 
 def test_legacy_session_payload_receives_safe_provenance_defaults(client):
@@ -7,7 +7,7 @@ def test_legacy_session_payload_receives_safe_provenance_defaults(client):
 
 
 def test_camera_session_accepts_versioned_provenance_without_raw_media(client):
-    participant = client.post("/api/v1/participants", json={}).json()
+    participant = create_test_participant(client)
     assert client.post("/api/v1/consents/start", json={"participant_id": participant["id"], "granted": True}).status_code == 201
     payload = {
         "participant_id": participant["id"], "age_months_at_measurement": 360,
@@ -29,7 +29,7 @@ def test_camera_session_accepts_versioned_provenance_without_raw_media(client):
 
 
 def test_session_contract_rejects_raw_media_fields(client):
-    participant = client.post("/api/v1/participants", json={}).json()
+    participant = create_test_participant(client)
     client.post("/api/v1/consents/start", json={"participant_id": participant["id"], "granted": True})
     response = client.post("/api/v1/measurement-sessions", json={
         "participant_id": participant["id"], "age_months_at_measurement": 360, "garment_categories": ["shirt"],
@@ -39,7 +39,7 @@ def test_session_contract_rejects_raw_media_fields(client):
 
 
 def test_session_contract_rejects_media_like_provenance_values(client):
-    participant = client.post("/api/v1/participants", json={}).json()
+    participant = create_test_participant(client)
     client.post("/api/v1/consents/start", json={"participant_id": participant["id"], "granted": True})
     response = client.post("/api/v1/measurement-sessions", json={
         "participant_id": participant["id"], "age_months_at_measurement": 360, "garment_categories": ["shirt"],

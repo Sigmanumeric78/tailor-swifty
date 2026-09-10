@@ -13,7 +13,7 @@ it('a valid reviewed form reaches the result screen', async () => {
     if (String(url).endsWith('/recommendations')) return jsonResponse(result, 201)
     return jsonResponse({})
   }))
-  renderApp({ route: '/review', flow: { schema, measurements, session: { id: 'session-1' } } })
+  renderApp({ route: '/review', flow: { schema, measurements, participant: { id: 'participant-1', participant_access_token: 'participant-token' }, session: { id: 'session-1' } } })
   await user.click(await screen.findByRole('button', { name: /create recommendation/i }))
   expect(await screen.findByRole('heading', { name: 'Breathable linen shirt' })).toBeInTheDocument()
 })
@@ -29,6 +29,14 @@ it('displays score, reasons, warnings, and finished measurements', async () => {
 
 it('can recover a saved result directly from the API', async () => {
   vi.stubGlobal('fetch', vi.fn(() => jsonResponse(result)))
-  renderApp({ route: '/results/rec-1' })
+  renderApp({ route: '/results/rec-1', flow: { participant: { id: 'participant-1', participant_access_token: 'participant-token' } } })
   expect(await screen.findByText('Light and comfortable for warm days.')).toBeInTheDocument()
+})
+
+it('does not retrieve a result after the in-memory participant session is lost', async () => {
+  const fetch = vi.fn(() => jsonResponse(result))
+  vi.stubGlobal('fetch', fetch)
+  renderApp({ route: '/results/rec-1' })
+  expect(await screen.findByText(/refreshing restarts the anonymous fitting session/i)).toBeInTheDocument()
+  expect(fetch).not.toHaveBeenCalled()
 })

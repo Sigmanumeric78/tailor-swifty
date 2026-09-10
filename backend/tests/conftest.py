@@ -8,6 +8,15 @@ from sqlalchemy.pool import StaticPool
 
 from app.core.database import Base, get_db
 from app.main import app
+from app.services import access_tokens
+
+
+TEST_SIGNING_SECRET = b"backend-test-signing-secret-with-at-least-thirty-two-bytes"
+
+
+@pytest.fixture(autouse=True)
+def signing_secret(monkeypatch):
+    monkeypatch.setattr(access_tokens, "get_camera_processing_signing_secret", lambda: TEST_SIGNING_SECRET)
 
 
 @pytest.fixture
@@ -50,8 +59,20 @@ def valid_measurements():
     ]
 
 
+def participant_headers(participant: dict) -> dict[str, str]:
+    return {"Authorization": f"Bearer {participant['participant_access_token']}"}
+
+
+def create_test_participant(client: TestClient) -> dict:
+    response = client.post("/api/v1/participants", json={})
+    assert response.status_code == 201
+    participant = response.json()
+    client.headers.update(participant_headers(participant))
+    return participant
+
+
 def build_session(client: TestClient) -> tuple[str, str]:
-    participant = client.post("/api/v1/participants", json={}).json()
+    participant = create_test_participant(client)
     consent = client.post(
         "/api/v1/consents/start",
         json={"participant_id": participant["id"], "granted": True},
@@ -69,4 +90,3 @@ def build_session(client: TestClient) -> tuple[str, str]:
     )
     assert session.status_code == 201
     return participant["id"], session.json()["id"]
-

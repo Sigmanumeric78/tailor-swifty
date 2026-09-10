@@ -804,12 +804,50 @@ h2 {
   object-fit: contain;
 }
 
+.server-camera-viewport {
+  position: relative;
+  overflow: hidden;
+  width: min(100%, 880px);
+  min-height: 420px;
+  border: 2px solid var(--atelier-forest);
+  background: #111;
+}
+
+.server-camera-viewport video {
+  display: block;
+  width: 100%;
+  height: min(68vh, 720px);
+  object-fit: contain;
+}
+
 .body-guide {
   position: absolute;
   inset: 3% 18% 2%;
   border: 2px dashed rgba(231, 215, 181, 0.9);
   border-radius: 45% 45% 18% 18%;
   pointer-events: none;
+}
+
+.server-measurement-review .clean-list {
+  display: grid;
+  gap: 0.65rem;
+  margin: 1rem 0;
+}
+
+.server-measurement-review li {
+  align-items: flex-start;
+  display: grid;
+  gap: 0.15rem;
+  text-transform: none;
+}
+
+.server-measurement-review strong {
+  text-transform: capitalize;
+}
+
+.server-measurement-review small {
+  color: var(--atelier-muted);
+  overflow-wrap: anywhere;
 }
 
 .quality-checklist ul {

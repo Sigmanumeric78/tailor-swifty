@@ -28,23 +28,39 @@ export async function request(path, options = {}) {
   return payload
 }
 
+function participantHeaders(participantAccessToken) {
+  if (!participantAccessToken) {
+    throw new ApiError(401, { error: { code: 'PARTICIPANT_ACCESS_REQUIRED', message: 'This anonymous fitting session expired. Start again to continue.' } })
+  }
+  return { Authorization: `Bearer ${participantAccessToken}` }
+}
+
 export const api = {
   schema: () => request('/api/v1/measurement-schema?garments=shirt'),
   participant: () => request('/api/v1/participants', { method: 'POST', body: '{}' }),
-  consent: (participantId) => request('/api/v1/consents/start', {
+  consent: (participantId, participantAccessToken) => request('/api/v1/consents/start', {
     method: 'POST',
+    headers: participantHeaders(participantAccessToken),
     body: JSON.stringify({ participant_id: participantId, purpose: 'generate_outfit_recommendation', granted: true }),
   }),
-  session: (payload) => request('/api/v1/measurement-sessions', { method: 'POST', body: JSON.stringify(payload) }),
-  measurements: (sessionId, measurements) => request(`/api/v1/measurement-sessions/${sessionId}/measurements`, {
-    method: 'POST', body: JSON.stringify({ measurements }),
+  cameraProcessingConsent: (participantId, participantAccessToken) => request('/api/v1/consents/start', {
+    method: 'POST',
+    headers: participantHeaders(participantAccessToken),
+    body: JSON.stringify({ participant_id: participantId, purpose: 'server_camera_processing', granted: true }),
   }),
-  validate: (sessionId) => request(`/api/v1/measurement-sessions/${sessionId}/validate`, { method: 'POST' }),
-  submit: (sessionId, key) => request(`/api/v1/measurement-sessions/${sessionId}/submit`, {
-    method: 'POST', headers: { 'Idempotency-Key': key },
+  cameraProcessingSession: (participantId, participantAccessToken) => request('/api/v1/camera-processing/session', {
+    method: 'POST', headers: participantHeaders(participantAccessToken), body: JSON.stringify({ participant_id: participantId, server_image_processing_consent: true }),
   }),
-  recommend: (payload, key) => request('/api/v1/recommendations', {
-    method: 'POST', headers: { 'Idempotency-Key': key }, body: JSON.stringify(payload),
+  session: (payload, participantAccessToken) => request('/api/v1/measurement-sessions', { method: 'POST', headers: participantHeaders(participantAccessToken), body: JSON.stringify(payload) }),
+  measurements: (sessionId, measurements, participantAccessToken) => request(`/api/v1/measurement-sessions/${sessionId}/measurements`, {
+    method: 'POST', headers: participantHeaders(participantAccessToken), body: JSON.stringify({ measurements }),
   }),
-  recommendation: (id) => request(`/api/v1/recommendations/${id}`),
+  validate: (sessionId, participantAccessToken) => request(`/api/v1/measurement-sessions/${sessionId}/validate`, { method: 'POST', headers: participantHeaders(participantAccessToken) }),
+  submit: (sessionId, key, participantAccessToken) => request(`/api/v1/measurement-sessions/${sessionId}/submit`, {
+    method: 'POST', headers: { ...participantHeaders(participantAccessToken), 'Idempotency-Key': key },
+  }),
+  recommend: (payload, key, participantAccessToken) => request('/api/v1/recommendations', {
+    method: 'POST', headers: { ...participantHeaders(participantAccessToken), 'Idempotency-Key': key }, body: JSON.stringify(payload),
+  }),
+  recommendation: (id, participantAccessToken) => request(`/api/v1/recommendations/${id}`, { headers: participantHeaders(participantAccessToken) }),
 }

@@ -1,4 +1,4 @@
-.PHONY: install-backend install-frontend migrate seed run-backend run-frontend test-backend test-frontend test
+.PHONY: install-backend install-frontend migrate seed run-backend run-frontend test-backend test-frontend test-processor test
 
 install-backend:
 	python3 -m venv backend/.venv
@@ -26,4 +26,7 @@ test-backend:
 test-frontend:
 	cd frontend && npm test -- --run
 
-test: test-backend test-frontend
+test-processor:
+	backend/.venv/bin/pytest -q camera_processor/tests
+
+test: test-backend test-frontend test-processor

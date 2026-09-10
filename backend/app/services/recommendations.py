@@ -9,7 +9,7 @@ from app.data.catalog import EASE_PROFILES, GARMENTS
 from app.models import RecommendationRun
 from app.repositories.records import get_recommendation_by_key, get_session, has_active_consent
 from app.schemas.contracts import Preferences, RecommendationCreate
-from app.services.measurements import PURPOSE, validate_session
+from app.services.measurements import PURPOSE, require_safe_idempotency_key, validate_session
 
 
 def _score(garment: dict, preferences: Preferences) -> tuple[int, int, dict[str, int], list[str]]:
@@ -66,6 +66,7 @@ def _result_from_run(run: RecommendationRun) -> dict:
 def create_recommendation(db: Session, payload: RecommendationCreate, idempotency_key: str) -> dict:
     if not idempotency_key.strip():
         raise DomainError(400, "IDEMPOTENCY_KEY_REQUIRED", "Idempotency-Key header is required")
+    require_safe_idempotency_key(idempotency_key)
     previous = get_recommendation_by_key(db, idempotency_key)
     if previous:
         if previous.session_id != payload.measurement_session_id:

@@ -79,7 +79,7 @@ export function PhotoUploadPage() {
   const photoList = (view, photos) => <ul className="photo-file-list">{photos.map((photo, index) => <li key={photo.id}><span>{photo.filename}<small>{photo.width} × {photo.height}px{photo.exif?.focalLengthMm ? ` · EXIF focal length ${photo.exif.focalLengthMm} mm (diagnostic only)` : ' · no usable EXIF calibration metadata'}{photo.exifConsistency === 'inconsistent' ? ' · EXIF dimensions may be stale after editing' : ''}</small></span><button type="button" className="secondary-button icon-button" aria-label={`Remove ${view} photo ${photo.filename}`} onClick={() => remove(view, index)}><Trash2 size={17} aria-hidden="true" /></button></li>)}</ul>
 
   return <section className="page page-photo-upload">
-    <PageHeader eyebrow="Existing-photo scan · Experimental and private" title="Estimate measurements from matched photos." description="Select exact front and profile photos. Files are decoded and processed locally, never uploaded or stored by Tailor Swifty." />
+    <PageHeader eyebrow="Browser research mode · Experimental" title="Estimate measurements from matched photos." description="This local-only research route is available solely when VITE_CAMERA_PROCESSING_MODE=browser-research; production uses the server processor." />
     <Notice tone="warning">These are rough experimental prefills, not validated accuracy. Three independent pairs are recommended. One pair is allowed, but repeatability cannot be assessed.</Notice>
     <div className="photo-privacy"><ShieldCheck size={22} aria-hidden="true" /><p>The application releases browser references to decoded images, but browser memory cannot provide forensic secure erasure. The original gallery files remain on your device.</p></div>
     {phase !== 'results' && <>

@@ -1,0 +1,12 @@
+{
+  "version": "2.0",
+  "rawPath": "/analyze",
+  "headers": {
+    "origin": "https://example.invalid"
+  },
+  "requestContext": {
+    "http": {
+      "method": "OPTIONS"
+    }
+  }
+}

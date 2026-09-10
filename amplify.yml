@@ -8,8 +8,8 @@ applications:
             - npm ci
         build:
           commands:
-            - npm run models:fetch
-            - npm run models:verify
+            - export VITE_CAMERA_PROCESSING_MODE=server
+            - npm run models:prepare
             - npm test -- --run
             - npm run build
       artifacts:

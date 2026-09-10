@@ -11,10 +11,11 @@ const humanize = (value) => value.replaceAll('_', ' ').replace(/\b\w/g, (letter)
 export function ResultPage() {
   const { id } = useParams()
   const { flow } = useFlow()
-  const resultQuery = useQuery({ queryKey: ['recommendation', id], queryFn: () => api.recommendation(id), enabled: !flow.result })
+  const participantAccessToken = flow.participant?.participant_access_token
+  const resultQuery = useQuery({ queryKey: ['recommendation', id], queryFn: () => api.recommendation(id, participantAccessToken), enabled: !flow.result && Boolean(participantAccessToken) })
   const result = flow.result || resultQuery.data
   if (resultQuery.isLoading && !result) return <div className="loading-state" role="status">Loading recommendation…</div>
-  if (!result) return <div className="empty-state" role="alert"><h1>Recommendation unavailable</h1><p>{resultQuery.error?.message || 'Complete the fitting flow to create a result.'}</p></div>
+  if (!result) return <div className="empty-state" role="alert"><h1>Recommendation unavailable</h1><p>{resultQuery.error?.message || 'For privacy, refreshing restarts the anonymous fitting session. Complete the fitting flow to create a new result.'}</p></div>
   return (
     <section className="page page-result">
       <PageHeader eyebrow="Recommendation complete · 06" title={result.garment_template.name} description={result.garment_template.description} />

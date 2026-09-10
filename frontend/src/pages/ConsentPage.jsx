@@ -15,7 +15,7 @@ export function ConsentPage() {
   const mutation = useMutation({
     mutationFn: async () => {
       const participant = flow.participant || await api.participant()
-      await api.consent(participant.id)
+      await api.consent(participant.id, participant.participant_access_token)
       return participant
     },
     onSuccess: (participant) => {
