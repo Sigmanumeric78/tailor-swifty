@@ -16,6 +16,18 @@ Parameters:
     Type: String
     Default: /tailor-swifty/production/camera-processing-signing-key
 
+  ProcessorReservedConcurrency:
+    Type: Number
+    Default: 0
+    MinValue: 0
+    Description: Set above zero only when the regional Lambda concurrency quota can preserve the required unreserved pool.
+
+Conditions:
+  UseProcessorReservedConcurrency: !Not
+    - !Equals
+      - !Ref ProcessorReservedConcurrency
+      - 0
+
 Globals:
   Function:
     Runtime: python3.13
@@ -75,7 +87,10 @@ Resources:
       Timeout: 60
       EphemeralStorage:
         Size: 512
-      ReservedConcurrentExecutions: 2
+      ReservedConcurrentExecutions: !If
+        - UseProcessorReservedConcurrency
+        - !Ref ProcessorReservedConcurrency
+        - !Ref AWS::NoValue
       Environment:
         Variables:
           ALLOWED_ORIGINS: !Ref AllowedOrigins
