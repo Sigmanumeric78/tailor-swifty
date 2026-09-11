@@ -3,6 +3,7 @@
 import base64
 import binascii
 import json
+import math
 import os
 from functools import lru_cache
 from typing import Any
@@ -14,7 +15,15 @@ from tokens import CAMERA_SESSION, PIPELINE_VERSION, TokenError, observation_tok
 
 MAX_REQUEST_BYTES = 4_500_000
 ALLOWED_MIME_TYPES = {"image/jpeg", "image/webp"}
-ALLOWED_METADATA = {"width", "height", "frame_rate", "aspect_ratio", "roll", "pitch", "encoded_bytes"}
+METADATA_BOUNDS = {
+    "width": (1, 1_600),
+    "height": (1, 1_600),
+    "encoded_bytes": (1, 2_500_000),
+    "frame_rate": (0, 240),
+    "aspect_ratio": (0, 10),
+    "roll": (-180, 180),
+    "pitch": (-180, 180),
+}
 
 
 @lru_cache
@@ -80,13 +89,21 @@ def _request(event: dict[str, Any]) -> dict[str, Any]:
 def _validate_metadata(value: Any) -> dict[str, float]:
     if value is None:
         return {}
-    if not isinstance(value, dict) or set(value) - ALLOWED_METADATA:
-        raise ProcessingError(422, "INVALID_CAPTURE_METADATA", "Capture metadata must contain bounded numeric values only.")
+    if not isinstance(value, dict):
+        raise ProcessingError(422, "INVALID_CAPTURE_METADATA", "Capture metadata must be a flat object of approved numeric fields.")
+    unknown = set(value) - set(METADATA_BOUNDS)
+    if unknown:
+        raise ProcessingError(422, "INVALID_CAPTURE_METADATA", "Capture metadata contains an unsupported field.")
     output = {}
     for key, item in value.items():
-        if isinstance(item, bool) or not isinstance(item, (int, float)) or not -100_000 <= float(item) <= 100_000:
-            raise ProcessingError(422, "INVALID_CAPTURE_METADATA", "Capture metadata must contain bounded numeric values only.")
-        output[key] = float(item)
+        if isinstance(item, bool) or not isinstance(item, (int, float)):
+            raise ProcessingError(422, "INVALID_CAPTURE_METADATA", f"Capture metadata field {key} must be numeric.")
+        numeric = float(item)
+        lower, upper = METADATA_BOUNDS[key]
+        lower_valid = numeric >= lower if key in {"width", "height", "encoded_bytes", "roll", "pitch"} else numeric > lower
+        if not math.isfinite(numeric) or not lower_valid or numeric > upper:
+            raise ProcessingError(422, "INVALID_CAPTURE_METADATA", f"Capture metadata field {key} is outside its allowed range.")
+        output[key] = numeric
     return output
 
 

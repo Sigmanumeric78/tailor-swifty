@@ -48,10 +48,12 @@ async function processorRequest(path, payload, signal, processorUrl = PROCESSOR_
   } finally { timed.dispose(); limiter.leave() }
 }
 
-export async function analyzeServerImage({ source, sessionToken, view, heightMm, candidateIndex, captureMetadata = {}, signal, onProgress = () => {}, onPrepared = () => {}, processorUrl = PROCESSOR_URL }) {
+export async function analyzeServerImage({ source, sessionToken, view, heightMm, candidateIndex, captureMetadata = {}, signal, onProgress = () => {}, onPrepared = () => {}, onTiming = () => {}, processorUrl = PROCESSOR_URL }) {
   let prepared = null
+  const started = performance.now()
   try {
     prepared = await prepareServerImage(source, { onProgress })
+    const preparedAt = performance.now()
     onPrepared({ byteSize: prepared.byteSize, width: prepared.width, height: prepared.height })
     onProgress('Sending encrypted request')
     const safeMetadata = Object.fromEntries(Object.entries(captureMetadata).filter(([key, value]) => SAFE_METADATA_KEYS.has(key) && Number.isFinite(value)))
@@ -64,6 +66,7 @@ export async function analyzeServerImage({ source, sessionToken, view, heightMm,
       candidate_index: candidateIndex,
       client_capture_metadata: { ...safeMetadata, width: prepared.width, height: prepared.height, encoded_bytes: prepared.byteSize },
     }, signal, processorUrl)
+    onTiming({ image_prepare_ms: preparedAt - started, upload_and_response_ms: performance.now() - preparedAt })
     onProgress('Checking photograph')
     return result
   } finally {

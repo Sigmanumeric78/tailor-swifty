@@ -4,7 +4,7 @@ Production pipeline version: `server-camera-0.1.0`. Browser-research pipeline ve
 
 ## Architecture and data flow
 
-Production and preview builds use the synchronous server pipeline documented in [server-camera-processing.md](./server-camera-processing.md). The browser corrects orientation, downsizes and canvas-re-encodes one JPEG/WebP at a time, sends that one photograph over HTTPS, and releases its bitmap/canvas/base64 references when the request settles. A dedicated Lambda uses MediaPipe and OpenCV in memory and returns a signed compact observation. Front and side raw pixels never coexist in one processor invocation; finalization combines signed observations without either photograph. No runtime S3, SQS, DynamoDB, EFS, image database field, or browser persistent storage is used.
+Production and preview builds use the synchronous server pipeline documented in [server-camera-processing.md](./server-camera-processing.md). The browser corrects orientation, downsizes and canvas-re-encodes one JPEG, PNG, or WebP source as JPEG, sends that one photograph over HTTPS, and releases its bitmap/canvas/base64 references when the request settles. A dedicated Lambda uses MediaPipe and OpenCV in memory and returns a signed compact observation. Front and side raw pixels never coexist in one processor invocation; finalization combines signed observations without either photograph. No runtime S3, SQS, DynamoDB, EFS, image database field, or browser persistent storage is used.
 
 `VITE_CAMERA_PROCESSING_MODE=browser-research` retains the prior local pipeline for explicit research only. In that mode, the `/measurements/camera` and `/measurements/photos` routes are lazy-loaded. Nothing requests camera permission or imports vision runtimes merely by opening either route. Live-camera permission is requested only after **Start camera scan**; photo models initialize only after **Process photos locally**. React Webcam owns the live video element, `useCameraStream` tracks and stops every stream track, and all image processing occurs in browser memory. Preview frames are reduced to at most 640 px for gates. Accepted captures use source resolution, exist as `ImageBitmap` objects only, and are closed on completion, cancellation, error, or unmount.
 
@@ -127,9 +127,9 @@ See `research/segmentation-benchmark/README.md`. The harness applies EXIF orient
 
 ## Performance evidence
 
-The audited pre-change browser build produced an initial application chunk of 135.89 kB minified, an 80.39 kB camera page, a 13.12 kB photo page, a 15,514.56 kB OpenCV chunk (3,906.10 kB gzip), and copied 94,018,799 bytes of verified browser model/runtime assets. The server-mode build produces a 266.89 kB initial chunk (85.20 kB gzip), 9.43 kB camera page, 6.86 kB photo page, and 357,891 bytes of JavaScript in total. It contains zero browser CV model/runtime files or references. These are desktop build artifact measurements, not network or mobile benchmarks.
+The audited pre-change browser build produced an initial application chunk of 135.89 kB minified, an 80.39 kB camera page, a 13.12 kB photo page, a 15,514.56 kB OpenCV chunk (3,906.10 kB gzip), and copied 94,018,799 bytes of verified browser model/runtime assets. The current server-mode build produces a 266.90 kB initial chunk (85.20 kB gzip), 19.70 kB camera page, 7.89 kB photo page, and 373,366 bytes of JavaScript in total. It contains zero browser CV model/runtime files or references. These are desktop build artifact measurements, not network or mobile benchmarks.
 
-The processor artifact is 237,210,838 bytes extracted and approximately 85,029,360 bytes as a conventional ZIP. In the matching Lambda Python 3.12 image, model initialization on this host took 267.010 ms and two warm synthetic no-person rejection paths took 39.493 ms and 31.247 ms. Those are local Docker rejection-path observations, not accepted full-pipeline latency and not AWS production results. No real-person, mobile, cold Lambda, peak-memory, or 1024/1769/2048/3008 MB comparative benchmark is claimed.
+The current processor artifact reports 237,212,384 bytes extracted and is approximately 85 MB as a conventional ZIP. In the matching Lambda Python 3.12 image, model initialization on this host took 267.010 ms and two warm synthetic no-person rejection paths took 39.493 ms and 31.247 ms. Those are local Docker rejection-path observations, not accepted full-pipeline latency and not AWS production results. No real-person, mobile, cold Lambda, peak-memory, or 1024/1769/2048/3008 MB comparative benchmark is claimed.
 
 ## Input modes and research boundaries
 
@@ -137,7 +137,7 @@ Session provenance distinguishes `MANUAL_MEASUREMENTS`, `CAMERA_MEASUREMENTS`, a
 
 `research/accuracy-pilot/` contains a machine-readable labelled-row schema, evaluation boundary, and validation-first robust-linear training skeleton. It requires pseudonymous participants, research-consent and licence metadata, professional ground truth, participant-grouped splits, and a device-held-out split. Without them both tools exit `DATASET_REQUIRED` and generate no simulated accuracy. Raw research images are excluded from the application and production database.
 
-## Physical validation checklist (not executed)
+## Browser-research physical validation checklist (not executed)
 
 - Recent Android Chrome, recent iPhone Safari, and desktop graceful fallback.
 - Fixed rear camera while the person rotates; front-camera fallback; low-resolution camera.
@@ -149,9 +149,11 @@ Session provenance distinguishes `MANUAL_MEASUREMENTS`, `CAMERA_MEASUREMENTS`, a
 
 This checklist must be completed by a real person on real devices. Synthetic fixtures and a desktop browser are not physical-phone validation.
 
+The active server-mode physical checklist, including real-frame startup, front/rear switching, session-expiry recovery, background/foreground behavior, and JPEG/PNG/WebP import, is maintained in [server-camera-processing.md](./server-camera-processing.md). Every entry remains **NOT EXECUTED**.
+
 ## Known limitations and manual confirmation
 
-Camera and photo estimates are experimental, not clinically or commercially validated. Close-fitting clothing is required; ordinary RGB images cannot recover anatomy hidden by loose clothes. Known-height calibration inherits height-entry, camera perspective, lens distortion, posture, hair, clothing and silhouette-boundary uncertainty. The ellipse circumference model is an approximation, not ground-truth anatomy, and no unvalidated correction factors are applied. Device cameras vary, and ultrawide or digital zoom should be avoided. Every estimate requires review; medium quality requires explicit confirmation, low quality requires retry or manual measurement, and shirt length always requires manual completion because preferred hem position is not observable.
+Camera and photo estimates are experimental, not clinically or commercially validated. Close-fitting clothing is required; ordinary RGB images cannot recover anatomy hidden by loose clothes. Known-height calibration inherits height-entry, camera perspective, lens distortion, posture, hair, clothing and silhouette-boundary uncertainty. The ellipse circumference model is an approximation, not ground-truth anatomy, and no unvalidated correction factors are applied. Device cameras vary, and ultrawide or digital zoom should be avoided. Every estimate requires review; medium quality requires explicit confirmation, low quality requires retry or manual measurement, and neck circumference and shirt length always require manual completion because their current geometry is not validated or observable.
 
 A physical phone smoke test is still required on recent Android Chrome and iPhone Safari devices, including front and rear cameras and permission retry behavior. A labelled pilot comparing estimates with professional tape measurements is also required before making accuracy claims.
 

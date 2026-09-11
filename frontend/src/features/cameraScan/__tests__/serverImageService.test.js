@@ -39,3 +39,22 @@ it('reduces encoding quality until the payload is below the configured limit and
   expect(context.clearRect).toHaveBeenCalledOnce()
   expect(instances[0].width).toBe(0); expect(instances[0].height).toBe(0)
 })
+
+it.each(['image/jpeg', 'image/png', 'image/webp'])('decodes %s sources and always transmits stripped JPEG bytes', async (sourceType) => {
+  const original = new File([new Uint8Array([1, 2, 3])], 'source', { type: sourceType })
+  const bitmap = { width: 800, height: 600, close: vi.fn() }; vi.stubGlobal('createImageBitmap', vi.fn().mockResolvedValue(bitmap))
+  installCanvas([encodedBlob(80_000)])
+  const prepared = await prepareServerImage(original)
+  expect(createImageBitmap).toHaveBeenCalledWith(original, { imageOrientation: 'from-image' })
+  expect(prepared.mimeType).toBe('image/jpeg')
+  expect(bitmap.close).toHaveBeenCalledOnce()
+})
+
+it('closes decoded images and clears canvas memory when compression fails', async () => {
+  const original = new File([new Uint8Array([1])], 'source.png', { type: 'image/png' })
+  const bitmap = { width: 800, height: 600, close: vi.fn() }; vi.stubGlobal('createImageBitmap', vi.fn().mockResolvedValue(bitmap))
+  const { context, instances } = installCanvas(Array(6).fill(encodedBlob(2_500_001)))
+  await expect(prepareServerImage(original)).rejects.toThrow(/compressed below 2.5 MB/i)
+  expect(bitmap.close).toHaveBeenCalledOnce(); expect(context.clearRect).toHaveBeenCalledOnce()
+  expect(instances[0].width).toBe(0); expect(instances[0].height).toBe(0)
+})

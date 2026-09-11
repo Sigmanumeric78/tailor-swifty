@@ -105,14 +105,12 @@ def _score(point: dict[str, float] | None) -> float:
 def _required_landmarks(landmarks: dict[str, dict[str, float]], view: str) -> list[str]:
     head = max(["nose", "left_eye", "right_eye", "left_ear", "right_ear"], key=lambda name: _score(landmarks.get(name)))
     if view == "FRONT":
-        endpoints = []
-        for side in ("left", "right"):
-            endpoints.append(max([f"{side}_ankle", f"{side}_heel", f"{side}_foot_index"], key=lambda name: _score(landmarks.get(name))))
-        return [head, "left_shoulder", "right_shoulder", "left_hip", "right_hip", "left_knee", "right_knee", *endpoints]
+        shoulder = max(["left_shoulder", "right_shoulder"], key=lambda name: _score(landmarks.get(name)))
+        hip = max(["left_hip", "right_hip"], key=lambda name: _score(landmarks.get(name)))
+        return [head, shoulder, hip]
     chains = []
     for side in ("left", "right"):
-        endpoint = max([f"{side}_ankle", f"{side}_heel", f"{side}_foot_index"], key=lambda name: _score(landmarks.get(name)))
-        names = [f"{side}_shoulder", f"{side}_hip", f"{side}_knee", endpoint]
+        names = [f"{side}_shoulder", f"{side}_hip"]
         chains.append((all(_usable(landmarks.get(name)) for name in names), sum(_score(landmarks.get(name)) for name in names), side, names))
     _, _, near_side, names = max(chains)
     near_head = max(["nose", f"{near_side}_eye", f"{near_side}_ear"], key=lambda name: _score(landmarks.get(name)))
@@ -258,7 +256,7 @@ def process_image(image_bytes: bytes, mime_type: str, view: str, verified_height
         landmarks = {name: _point(point) for name, point in zip(LANDMARK_NAMES, poses[0])}
         required_landmarks = _required_landmarks(landmarks, view)
         if not all(_usable(landmarks.get(name)) for name in required_landmarks):
-            raise ProcessingError(422, "LANDMARKS_UNCERTAIN", "Keep shoulders, hips, knees, and the full body clearly visible.")
+            raise ProcessingError(422, "LANDMARKS_UNCERTAIN", "Keep the head, shoulders, hips, and full body clearly visible.")
         masks = list(result.segmentation_masks or [])
         if not masks:
             raise ProcessingError(422, "SEGMENTATION_MISSING", "Use a plain contrasting background and keep the full body visible.")
@@ -275,6 +273,8 @@ def process_image(image_bytes: bytes, mime_type: str, view: str, verified_height
         silhouette_height = max_y - min_y + 1
         occupancy = silhouette_height / height
         hard, warnings = [], []
+        if not any(_usable(landmarks.get(name)) for name in ("left_knee", "right_knee")):
+            warnings.append("KNEE_VISIBILITY_LOW")
         if min_y <= 1:
             hard.append("HEAD_OUT_OF_FRAME")
         if max_y >= height - 2:
@@ -307,13 +307,13 @@ def process_image(image_bytes: bytes, mime_type: str, view: str, verified_height
                 "SEVERE_OVEREXPOSURE": "Avoid bright backlighting and retake.",
             }
             raise ProcessingError(422, priority, corrections.get(priority, "Retake the photograph with one full-body person visible."))
+        geometry_started = time.perf_counter()
         mm_per_pixel = verified_height_mm / silhouette_height
         shoulder_y = (landmarks["left_shoulder"]["y"] + landmarks["right_shoulder"]["y"]) / 2
         hip_y = (landmarks["left_hip"]["y"] + landmarks["right_hip"]["y"]) / 2
         torso = hip_y - shoulder_y
         center_x = (landmarks["left_hip"]["x"] + landmarks["right_hip"]["x"]) * width / 2
         slices = {
-            "neck": _scan_width(cleaned, (shoulder_y - 0.08 * torso) * height, center_x, np),
             "chest": _scan_width(cleaned, (shoulder_y + 0.28 * torso) * height, center_x, np),
             "waist": _scan_band(cleaned, (shoulder_y + 0.52 * torso) * height, (shoulder_y + 0.82 * torso) * height, center_x, False, np),
             "hip": _scan_band(cleaned, (hip_y - 0.05 * torso) * height, (hip_y + 0.12 * torso) * height, center_x, True, np),
@@ -327,9 +327,18 @@ def process_image(image_bytes: bytes, mime_type: str, view: str, verified_height
                 return None
             return math.hypot((a["x"] - b["x"]) * width, (a["y"] - b["y"]) * height) * mm_per_pixel
         shoulder_length = distance("left_shoulder", "right_shoulder")
-        upper = distance("left_shoulder", "left_elbow")
-        lower = distance("left_elbow", "left_wrist")
-        sleeve = upper + lower if upper is not None and lower is not None else None
+        arm_chains = []
+        for side in ("left", "right"):
+            names = [f"{side}_shoulder", f"{side}_elbow", f"{side}_wrist"]
+            if all(_usable(landmarks.get(name)) for name in names):
+                upper = distance(names[0], names[1]); lower = distance(names[1], names[2])
+                arm_chains.append((sum(_score(landmarks.get(name)) for name in names), upper + lower))
+        sleeve = max(arm_chains)[1] if arm_chains else None
+        length_reason_codes = {
+            "shoulder_width": [] if shoulder_length is not None else ["SHOULDER_LANDMARKS_UNCERTAIN"],
+            "sleeve_length": [] if sleeve is not None else ["ARM_CHAIN_UNCERTAIN"],
+            "armhole_depth": [],
+        }
         armhole = abs((shoulder_y + 0.28 * torso) * height - shoulder_y * height) * mm_per_pixel
         pose_scores = [min(landmarks[name]["visibility"], landmarks[name]["presence"]) for name in required_landmarks]
         pose_quality = sum(pose_scores) / len(pose_scores)
@@ -343,6 +352,7 @@ def process_image(image_bytes: bytes, mime_type: str, view: str, verified_height
             "calibration": {"method": "VERIFIED_HEIGHT_WEAK_PERSPECTIVE", "mm_per_pixel": round(mm_per_pixel, 7), "quality": round(calibration_quality, 4)},
             "capture_quality": quality["score"],
             "lengths_mm": {"armhole_depth": round(armhole, 4), "shoulder_width": round(shoulder_length, 4) if shoulder_length else None, "sleeve_length": round(sleeve, 4) if sleeve else None},
+            "length_reason_codes": length_reason_codes,
             "model_id": MODEL_ID,
             "model_runtime": MODEL_RUNTIME,
             "model_versions": [MODEL_ID, MODEL_RUNTIME, OPENCV_RUNTIME],
@@ -352,7 +362,7 @@ def process_image(image_bytes: bytes, mime_type: str, view: str, verified_height
             "warnings": sorted(set(warnings + ["LOOSE_CLOTHING_LIMITATION"])),
             "widths_mm": widths_mm,
         }
-        timings = {"decode_ms": decode_ms, "pose_and_segmentation_ms": pose_ms, "total_ms": (time.perf_counter() - total_started) * 1000}
+        timings = {"decode_ms": decode_ms, "pose_and_segmentation_ms": pose_ms, "geometry_ms": (time.perf_counter() - geometry_started) * 1000, "total_ms": (time.perf_counter() - total_started) * 1000}
         if _model_initialization_ms is not None:
             timings["cold_model_initialization_ms"] = _model_initialization_ms
         return geometry, {key: round(value, 3) for key, value in timings.items()}

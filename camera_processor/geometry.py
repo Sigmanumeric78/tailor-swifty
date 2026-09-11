@@ -24,7 +24,8 @@ def median_mad(values: list[float]) -> tuple[float | None, float | None]:
     return center, statistics.median(abs(value - center) for value in finite)
 
 
-def _measurement(code: str, values: list[float | None], quality: float, warnings: list[str]) -> dict[str, Any]:
+def _measurement(code: str, values: list[float | None], quality: float, warnings: list[str], measurement_reasons: list[str] | None = None) -> dict[str, Any]:
+    measurement_reasons = measurement_reasons or []
     center, mad = median_mad([value for value in values if value is not None])
     if center is None:
         return {
@@ -33,13 +34,13 @@ def _measurement(code: str, values: list[float | None], quality: float, warnings
             "uncertainty_mm": None,
             "quality_score": 0,
             "confidence_level": "low",
-            "reason_codes": [*warnings, "MISSING_VIEW_GEOMETRY"],
+            "reason_codes": sorted(set([*warnings, *measurement_reasons, "MISSING_VIEW_GEOMETRY"])),
             "source": "SERVER_CAMERA",
             "requires_manual_confirmation": True,
             "observable": True,
         }
     uncertainty = max(1.0, mad or 0.0, center * 0.04)
-    local_warnings = list(warnings)
+    local_warnings = [*warnings, *measurement_reasons]
     valid_count = sum(value is not None for value in values)
     relative_mad = (mad or 0.0) / center if center else 1.0
     if valid_count > 1 and relative_mad > 0.04:
@@ -82,15 +83,26 @@ def finalize_geometry(fronts: list[dict[str, Any]], sides: list[dict[str, Any]])
         base_quality = min(base_quality, 0.74)
     output: dict[str, Any] = {}
     for short, code in {
-        "neck": "neck_circumference",
         "chest": "chest_circumference",
         "waist": "waist_circumference",
         "hip": "hip_circumference",
     }.items():
         values = [ellipse_circumference(front["widths_mm"].get(short), sides[index]["widths_mm"].get(short)) for index, front in enumerate(fronts)]
         output[code] = _measurement(code, values, base_quality, warnings)
+    output["neck_circumference"] = {
+        "measurement_code": "neck_circumference",
+        "value_mm": None,
+        "uncertainty_mm": None,
+        "quality_score": 0,
+        "confidence_level": "low",
+        "reason_codes": ["NECK_ESTIMATOR_UNVALIDATED"],
+        "source": "SERVER_CAMERA",
+        "requires_manual_confirmation": True,
+        "observable": False,
+    }
     for field in ["shoulder_width", "sleeve_length", "armhole_depth"]:
-        output[field] = _measurement(field, [item.get("lengths_mm", {}).get(field) for item in fronts], base_quality, warnings)
+        field_reasons = sorted(set(code for item in fronts for code in item.get("length_reason_codes", {}).get(field, [])))
+        output[field] = _measurement(field, [item.get("lengths_mm", {}).get(field) for item in fronts], base_quality, warnings, field_reasons)
     output["shirt_length"] = {
         "measurement_code": "shirt_length",
         "value_mm": None,
@@ -102,7 +114,8 @@ def finalize_geometry(fronts: list[dict[str, Any]], sides: list[dict[str, Any]])
         "requires_manual_confirmation": True,
         "observable": False,
     }
-    required = [item["quality_score"] for item in output.values() if item["observable"]]
-    overall = 0 if any(item["value_mm"] is None for item in output.values() if item["observable"]) else min(required)
+    essential_codes = ["chest_circumference", "waist_circumference", "hip_circumference", "armhole_depth"]
+    required = [item["quality_score"] for item in output.values() if item["observable"] and item["value_mm"] is not None]
+    overall = 0 if any(output[code]["value_mm"] is None for code in essential_codes) else min(required, default=0)
     reason_codes = sorted(set(code for item in output.values() for code in item["reason_codes"]))
     return {"measurements": output, "overall_quality_score": overall, "reason_codes": reason_codes}

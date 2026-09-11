@@ -1,7 +1,7 @@
 import { ArrowLeft, ArrowRight, LockKeyhole } from 'lucide-react'
 import { useMutation } from '@tanstack/react-query'
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
 import { Notice } from '../components/Notice'
 import { PageHeader } from '../components/PageHeader'
@@ -9,7 +9,10 @@ import { useFlow } from '../features/FlowContext'
 
 export function ConsentPage() {
   const navigate = useNavigate()
+  const location = useLocation()
   const { flow, updateFlow } = useFlow()
+  const requestedReturn = location.state?.returnTo
+  const returnTo = ['/measurements/camera', '/measurements/photos'].includes(requestedReturn) ? requestedReturn : '/measurements'
   const [accepted, setAccepted] = useState(flow.consented)
   const [ageYears, setAgeYears] = useState(flow.ageYears)
   const mutation = useMutation({
@@ -20,7 +23,7 @@ export function ConsentPage() {
     },
     onSuccess: (participant) => {
       updateFlow({ participant, consented: true, ageYears: Number(ageYears) })
-      navigate('/measurements')
+      navigate(returnTo, { replace: true })
     },
   })
   const submit = (event) => {

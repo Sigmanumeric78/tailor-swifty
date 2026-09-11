@@ -1,7 +1,10 @@
 import base64
 import importlib.util
 import json
+import math
 from pathlib import Path
+
+import pytest
 
 from runtime import ProcessingError
 from tokens import CAMERA_SESSION, PIPELINE_VERSION, sign_payload
@@ -45,6 +48,8 @@ def test_front_and_side_are_separate_and_finalize_without_images(monkeypatch):
     body = json.loads(finalized["body"])
     assert finalized["statusCode"] == 200
     assert body["measurements"]["shirt_length"]["value_mm"] is None
+    assert body["measurements"]["neck_circumference"]["value_mm"] is None
+    assert body["measurements"]["neck_circumference"]["reason_codes"] == ["NECK_ESTIMATOR_UNVALIDATED"]
     assert "image" not in json.dumps(body).lower()
 
 
@@ -112,3 +117,27 @@ def test_cors_allows_only_the_configured_browser_origin(monkeypatch):
     assert allowed["headers"]["Access-Control-Allow-Origin"] == ORIGIN
     assert denied["statusCode"] == 403
     assert "Access-Control-Allow-Origin" not in denied["headers"]
+
+
+@pytest.mark.parametrize("encoded_bytes", [75_000, 100_000, 100_001, 101 * 1024, 500_000, 2_499_999, 2_500_000])
+def test_encoded_byte_metadata_accepts_the_real_image_limit(encoded_bytes):
+    assert app._validate_metadata({"encoded_bytes": encoded_bytes}) == {"encoded_bytes": float(encoded_bytes)}
+
+
+@pytest.mark.parametrize(
+    "metadata",
+    [
+        {"encoded_bytes": 2_500_001}, {"encoded_bytes": -1}, {"width": 0},
+        {"height": True}, {"frame_rate": "30"}, {"aspect_ratio": math.nan},
+        {"roll": math.inf}, {"pitch": -math.inf}, {"unknown": 1},
+        {"width": []}, {"height": {}},
+    ],
+)
+def test_capture_metadata_rejects_invalid_types_bounds_and_unknown_keys(metadata):
+    with pytest.raises(ProcessingError, match="INVALID_CAPTURE_METADATA"):
+        app._validate_metadata(metadata)
+
+
+def test_all_metadata_fields_use_independent_bounds():
+    valid = {"width": 1600, "height": 1600, "encoded_bytes": 2_500_000, "frame_rate": 240, "aspect_ratio": 10, "roll": -180, "pitch": 180}
+    assert app._validate_metadata(valid) == {key: float(value) for key, value in valid.items()}

@@ -25,6 +25,30 @@ def test_finalize_keeps_shirt_length_manual_and_marks_single_repeat():
     assert result["overall_quality_score"] < 0.75
 
 
+def test_finalize_never_returns_an_unvalidated_numeric_neck_estimate():
+    result = finalize_geometry([observation("FRONT")], [observation("SIDE")])
+    neck = result["measurements"]["neck_circumference"]
+    assert neck["value_mm"] is None
+    assert neck["uncertainty_mm"] is None
+    assert neck["quality_score"] == 0
+    assert neck["observable"] is False
+    assert neck["requires_manual_confirmation"] is True
+    assert neck["reason_codes"] == ["NECK_ESTIMATOR_UNVALIDATED"]
+
+
+def test_missing_optional_limb_geometry_does_not_discard_torso_results():
+    front = observation("FRONT")
+    front["lengths_mm"]["shoulder_width"] = None
+    front["lengths_mm"]["sleeve_length"] = None
+    front["length_reason_codes"] = {"shoulder_width": ["SHOULDER_LANDMARKS_UNCERTAIN"], "sleeve_length": ["ARM_CHAIN_UNCERTAIN"]}
+    result = finalize_geometry([front], [observation("SIDE")])
+    assert result["measurements"]["chest_circumference"]["value_mm"] is not None
+    assert result["measurements"]["shoulder_width"]["value_mm"] is None
+    assert "SHOULDER_LANDMARKS_UNCERTAIN" in result["measurements"]["shoulder_width"]["reason_codes"]
+    assert result["measurements"]["sleeve_length"]["value_mm"] is None
+    assert result["overall_quality_score"] > 0
+
+
 def test_missing_observable_geometry_forces_zero_overall_quality():
     front = observation("FRONT"); front["widths_mm"]["chest"] = None
     result = finalize_geometry([front], [observation("SIDE")])

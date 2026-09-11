@@ -14,11 +14,14 @@ class Mask:
 
 
 class Landmarker:
-    def __init__(self, view, people=1, missing_near=False, occlude_far=True):
-        self.view = view; self.people = people; self.missing_near = missing_near; self.occlude_far = occlude_far
+    def __init__(self, view, people=1, missing_near=False, occlude_far=True, low_indices=(), mask_bounds=(48, 910)):
+        self.view = view; self.people = people; self.missing_near = missing_near; self.occlude_far = occlude_far; self.low_indices = low_indices; self.mask_bounds = mask_bounds
     def detect(self, _image):
         poses = [pose(self.view, self.missing_near, self.occlude_far) for _ in range(self.people)]
-        mask = np.zeros((960, 640), dtype=np.float32); mask[48:910, 190:450] = 1
+        for item in poses:
+            for index in self.low_indices:
+                item[index].visibility = .1; item[index].presence = .1
+        mask = np.zeros((960, 640), dtype=np.float32); mask[self.mask_bounds[0]:self.mask_bounds[1], 190:450] = 1
         return types.SimpleNamespace(pose_landmarks=poses, segmentation_masks=[Mask(mask)] if self.people else [])
 
 
@@ -90,3 +93,30 @@ def test_torso_connected_component_wins_over_larger_disconnected_object():
 def test_model_singleton_initializes_once_in_warm_environment():
     first = runtime.get_landmarker(); second = runtime.get_landmarker()
     assert first is second
+
+
+@pytest.mark.parametrize("view", ["FRONT", "SIDE"])
+def test_low_knee_visibility_is_advisory_for_torso_geometry(view):
+    geometry, _ = runtime.process_image(encoded_image(), "image/jpeg", view, 1800, landmarker=Landmarker(view, low_indices=(25, 26)))
+    assert geometry["widths_mm"]["chest"] > 0
+    assert "KNEE_VISIBILITY_LOW" in geometry["warnings"]
+
+
+def test_one_uncertain_shoulder_withholds_only_shoulder_width():
+    geometry, _ = runtime.process_image(encoded_image(), "image/jpeg", "FRONT", 1800, landmarker=Landmarker("FRONT", low_indices=(11,)))
+    assert geometry["lengths_mm"]["shoulder_width"] is None
+    assert geometry["widths_mm"]["chest"] > 0
+    assert geometry["length_reason_codes"]["shoulder_width"] == ["SHOULDER_LANDMARKS_UNCERTAIN"]
+
+
+def test_missing_arm_chains_withhold_only_sleeve_length():
+    geometry, _ = runtime.process_image(encoded_image(), "image/jpeg", "FRONT", 1800, landmarker=Landmarker("FRONT", low_indices=(13, 14, 15, 16)))
+    assert geometry["lengths_mm"]["sleeve_length"] is None
+    assert geometry["widths_mm"]["waist"] > 0
+    assert geometry["length_reason_codes"]["sleeve_length"] == ["ARM_CHAIN_UNCERTAIN"]
+
+
+@pytest.mark.parametrize(("bounds", "code"), [((0, 910), "HEAD_OUT_OF_FRAME"), ((48, 960), "FEET_OUT_OF_FRAME")])
+def test_silhouette_endpoints_still_reject_unsafe_height_calibration(bounds, code):
+    with pytest.raises(runtime.ProcessingError, match=code):
+        runtime.process_image(encoded_image(), "image/jpeg", "FRONT", 1800, landmarker=Landmarker("FRONT", mask_bounds=bounds))

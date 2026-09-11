@@ -1,4 +1,4 @@
-import { parsePhotoExif } from './photoImportService'
+import { maximumDecodedPixels, parsePhotoExif, validatePhotoFileMetadata } from './photoImportService'
 import { serverImageConfig } from '../serverConfig'
 
 function createCanvas(width, height) {
@@ -30,13 +30,14 @@ export async function prepareServerImage(source, { mimeType = 'image/jpeg', onPr
   try {
     const isFile = typeof File !== 'undefined' && source instanceof File
     if (isFile) {
-      if (!['image/jpeg', 'image/webp'].includes(source.type)) throw new Error('Use a JPEG or WebP photograph.')
+      validatePhotoFileMetadata(source)
       await parsePhotoExif(source) // parsed locally for orientation diagnostics; never transmitted
       bitmap = await createImageBitmap(source, { imageOrientation: 'from-image' })
     }
     const drawable = bitmap || source
     const dimensions = sourceDimensions(drawable)
     if (!dimensions.width || !dimensions.height) throw new Error('The image has invalid dimensions.')
+    if (dimensions.width * dimensions.height > maximumDecodedPixels) throw new Error('Decoded image resolution must not exceed 24 megapixels.')
     const scale = Math.min(1, serverImageConfig.preferredLongEdge / Math.max(dimensions.width, dimensions.height))
     const width = Math.max(1, Math.round(dimensions.width * scale)); const height = Math.max(1, Math.round(dimensions.height * scale))
     canvas = createCanvas(width, height); context = canvas.getContext('2d')
