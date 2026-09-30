@@ -1,7 +1,7 @@
-import { ArrowRight, Check, Shirt } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
-import { PageHeader } from '../components/PageHeader'
 import { useFlow } from '../features/FlowContext'
+import { AtelierHero } from '../components/atelier/AtelierHero'
+import { atelierAssets } from '../components/atelier/assets'
 
 export function IntroductionPage() {
   const navigate = useNavigate()
@@ -11,26 +11,18 @@ export function IntroductionPage() {
     navigate('/consent')
   }
   return (
-    <section className="page page-introduction">
-      <PageHeader eyebrow="Adult shirt fitting · 01" title="A shirt, measured for you." description="Eight precise measurements and your selected preferences become one transparent shirt recommendation, with finished-garment targets ready to review." />
-      <div className="selection-layout">
-        <button type="button" className="garment-choice selected" onClick={start}>
-          <span className="garment-visual"><Shirt size={116} strokeWidth={1} aria-hidden="true" /></span>
-          <span className="garment-copy"><small>Available garment</small><strong>Made-to-measure shirt</strong><span>Eight required measurements</span></span>
-          <span className="choice-check"><Check size={16} aria-hidden="true" /></span>
-        </button>
-        <div className="scope-panel">
-          <p className="section-number">Preparation / 03</p>
-          <h2>Before you begin</h2>
-          <ul className="clean-list">
-            <li><Check size={16} aria-hidden="true" /><span>Use a flexible tape and light clothing.</span></li>
-            <li><Check size={16} aria-hidden="true" /><span>Keep the tape level without pulling tight.</span></li>
-            <li><Check size={16} aria-hidden="true" /><span>Allow about six minutes for the adult fitting flow.</span></li>
-          </ul>
-          <p className="data-note">Production fitting data is stored securely in a Neon PostgreSQL database.</p>
+    <div className="atelier-landing">
+      <AtelierHero onStart={start} assets={atelierAssets} />
+      <section className="atelier-process" id="atelier-how" aria-labelledby="atelier-process-title">
+        <p className="atelier-process-kicker">ADULT SHIRT FITTING</p>
+        <h2 id="atelier-process-title">Considered at every step.</h2>
+        <div className="atelier-process-grid">
+          <article><span>01</span><h3>Choose your approach</h3><p>Enter measurements with a flexible tape, or try the experimental photo-assisted flow after consent.</p></article>
+          <article><span>02</span><h3>Make it personal</h3><p>Review your measurements and choose your fit preferences. Photo estimates require your review.</p></article>
+          <article><span>03</span><h3>Find your direction</h3><p>Receive a transparent shirt recommendation and finished-garment targets to discuss with your tailor.</p></article>
         </div>
-      </div>
-      <div className="page-actions end"><button className="primary-button" onClick={start}>Continue <ArrowRight size={17} aria-hidden="true" /></button></div>
-    </section>
+        <p className="atelier-process-note">For manual measurements, use a flexible tape, keep it level, and avoid pulling tight. For photos, follow the capture instructions and wear close-fitting clothing.</p>
+      </section>
+    </div>
   )
 }

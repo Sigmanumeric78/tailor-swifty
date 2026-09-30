@@ -14,7 +14,7 @@ export function Layout({ children }) {
   const { pathname } = useLocation()
   const currentIndex = Math.max(0, steps.findIndex(([path]) => path === '/' ? pathname === '/' : pathname.startsWith(path)))
   return (
-    <div className="app-shell">
+    <div className={pathname === '/' ? 'app-shell atelier-home' : 'app-shell'}>
       <header className="topbar">
         <Link to="/" className="brand" aria-label="Tailor Swifty home">
           <span className="brand-mark"><Shirt size={21} /></span>

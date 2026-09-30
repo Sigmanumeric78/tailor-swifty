@@ -1995,3 +1995,19 @@ h2 {
     color: #000;
   }
 }
+
+/* Atelier landing only: the established fitting workspace is unchanged elsewhere. */
+.atelier-home .workspace { display: block; }
+.atelier-home .step-rail { display: none; }
+.atelier-home .main-content { width: 100%; padding: 0; }
+.atelier-landing { background: #f5f1e8; }
+.atelier-process { max-width: 1440px; margin: auto; padding: 70px 6%; border-top: 1px solid #dcd6c8; color: #183e35; scroll-margin-top: 80px; }
+.atelier-process-kicker { font-size: 10px; letter-spacing: .2em; color: #927143; }
+.atelier-process h2 { font: 42px Georgia, serif; letter-spacing: -1px; }
+.atelier-process-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 48px; margin-top: 42px; }
+.atelier-process-grid article { border-top: 1px solid #c9bda8; padding-top: 20px; }
+.atelier-process-grid article > span { color: #927143; font-size: 12px; }
+.atelier-process-grid h3 { font: 25px Georgia, serif; margin: 20px 0 15px; }
+.atelier-process-grid p, .atelier-process-note { font-size: 14px; line-height: 1.8; color: #6d7168; }
+.atelier-process-note { margin-top: 36px; max-width: 820px; }
+@media (max-width: 760px) { .atelier-process-grid { grid-template-columns: 1fr; gap: 24px; } .atelier-process h2 { font-size: 34px; } }

@@ -1,5 +1,13 @@
 # Third-party notices — camera measurement experiments
 
+## Production interface dependency
+
+| Component | Exact version | Licence | Upstream | Purpose |
+|---|---:|---|---|---|
+| three | 0.160.0 | MIT | https://github.com/mrdoob/three.js | Lazy-loaded Atelier landing sculpture and decorative tape renderer |
+
+The Atelier torso, texture, tape geometry and poster were supplied as project assets. Their external source licence was not independently established by this integration; retain the original ownership and usage records. They are decorative interface assets and are not customer measurement inputs.
+
 ## Server processor production dependencies
 
 | Component | Exact version | Licence | Upstream | Purpose |
